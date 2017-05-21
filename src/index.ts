@@ -2,12 +2,6 @@ import * as fs from "fs";
 import * as url from 'url';
 import * as request from "request";
 
-import {
-    splitOnFirst,
-    splitOnLast,
-    combinePaths
-} from "./utils";
-
 const ALIAS = {
     "cs": "csharp",
     "ts": "typescript",
@@ -46,19 +40,20 @@ export function cli(args: string[]) {
     const isDefault = cmdArgs.length == 0;
 
     if (isDefault) {
-        execDefault(lang, cwd);
+        execDefault(lang, cwd, dtosExt);
         return;
     }
 
-    const isHelp = ["-h", "/h", "-?", "/?", "--help", "/help"].indexOf(cmdArgs[0]) >= 0;
+    const arg1 = cmdArgs[0];
+    const isHelp = ["-h", "/h", "-?", "/?", "--help", "/help"].indexOf(arg1) >= 0;
     if (isHelp) {
         execHelp(lang, scriptName, dtosExt);
         return;
     }
 
-    if (cmdArgs.length >= 1 && cmdArgs.length <= 2) {
+    if (["-","/"].indexOf(arg1[0]) === -1 && cmdArgs.length <= 2) {
         try {
-            const target = cmdArgs[0];
+            const target = arg1;
 
             if (target.indexOf("://") >= 0) {
                 var typesUrl = target.indexOf(`/types/${lang}`) == -1
@@ -92,8 +87,7 @@ export function cli(args: string[]) {
         return;
     }
 
-    console.log("Unknown Command:");
-    console.log(`${scriptName} ${cmdArgs.join(' ')}\n`);
+    console.log(`Unknown Command: ${scriptName} ${cmdArgs.join(' ')}`);
     execHelp(lang, scriptName, dtosExt);
     return -1;
 }
@@ -107,6 +101,11 @@ function handleError(e, msg:string=null) {
 }
 
 export function updateReference(lang: string, cwd: string, target:string) {
+    const targetExt = splitOnLast(target, '.')[1];
+    const langExt = splitOnLast(REF_EXT[lang], '.')[1];
+    if (targetExt != langExt) 
+        throw new Error(`Invalid file type: '${target}', expected '.${langExt}' source file`);
+
     const existingRefPath = combinePaths(cwd, target);
     if (!fs.existsSync(existingRefPath))
         throw new Error(`File does not exist: ${existingRefPath.replace(/\\/g, '/')}`);
@@ -160,7 +159,6 @@ export function updateReference(lang: string, cwd: string, target:string) {
 export function saveReference(lang: string, typesUrl: string, cwd: string, fileName: string) {
     const filePath = combinePaths(cwd, fileName);
 
-    var dtos = "";
     request(typesUrl, (err, res, dtos) => {
         if (err)
             handleError(err);
@@ -173,7 +171,7 @@ export function saveReference(lang: string, typesUrl: string, cwd: string, fileN
 
             fs.writeFileSync(filePath, dtos, 'utf8');
 
-            console.log(filePathExists? `Saved to: ${fileName}` : `Updated: ${fileName}`);
+            console.log(filePathExists ? `Updated: ${fileName}` : `Saved to: ${fileName}`);
 
             if (lang == "swift") {
                 importSwiftClientSources(cwd);
@@ -186,8 +184,26 @@ export function saveReference(lang: string, typesUrl: string, cwd: string, fileN
     });
 }
 
-export function execDefault(lang: string, cwd: string) {
-    console.log('\nexecDefault', { lang, cwd });
+export function execDefault(lang: string, cwd: string, dtosExt:string) {
+    var matchingFiles = [];
+    fs.readdirSync(cwd).forEach(entry => {
+        if (entry.endsWith(dtosExt)) {
+            matchingFiles.push(entry);
+        }
+    });
+
+    if (matchingFiles.length === 0) {
+        console.error(`No '.${dtosExt}' files found`);
+        process.exit(-1);
+    } else {
+        matchingFiles.forEach(target => {
+            try {
+                updateReference(lang, cwd, target);
+            } catch(e) {
+                console.error(e.message || e);
+            }
+        });
+    }
 }
 
 export function execHelp(lang: string, scriptName: string, dtosExt: string) {
@@ -235,3 +251,37 @@ export function importSwiftClientSources(cwd:string) {
         });
     }
 }
+
+//utils
+export const splitOnFirst = (s: string, c: string): string[] => {
+    if (!s) return [s];
+    var pos = s.indexOf(c);
+    return pos >= 0 ? [s.substring(0, pos), s.substring(pos + 1)] : [s];
+};
+
+export const splitOnLast = (s: string, c: string): string[] => {
+    if (!s) return [s];
+    var pos = s.lastIndexOf(c);
+    return pos >= 0
+        ? [s.substring(0, pos), s.substring(pos + 1)]
+        : [s];
+};
+
+export const combinePaths = (...paths: string[]): string => {
+    var parts = [], i, l;
+    for (i = 0, l = paths.length; i < l; i++) {
+        var arg = paths[i];
+        parts = arg.indexOf("://") === -1
+            ? parts.concat(arg.split("/"))
+            : parts.concat(arg.lastIndexOf("/") === arg.length - 1 ? arg.substring(0, arg.length - 1) : arg);
+    }
+    var combinedPaths = [];
+    for (i = 0, l = parts.length; i < l; i++) {
+        var part = parts[i];
+        if (!part || part === ".") continue;
+        if (part === "..") combinedPaths.pop();
+        else combinedPaths.push(part);
+    }
+    if (parts[0] === "") combinedPaths.unshift("");
+    return combinedPaths.join("/") || (combinedPaths.length ? "/" : ".");
+};

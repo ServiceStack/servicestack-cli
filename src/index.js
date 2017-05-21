@@ -3,7 +3,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 var fs = require("fs");
 var url = require("url");
 var request = require("request");
-var utils_1 = require("./utils");
 var ALIAS = {
     "cs": "csharp",
     "ts": "typescript",
@@ -26,9 +25,9 @@ var REF_EXT = {
 function cli(args) {
     var nodeExe = args[0];
     var cliPath = args[1];
-    var scriptNameExt = utils_1.splitOnLast(cliPath.replace(/\\/g, '/'), '/')[1];
-    var scriptName = utils_1.splitOnLast(scriptNameExt, '.')[0];
-    var cliLang = utils_1.splitOnLast(scriptName, '-')[0];
+    var scriptNameExt = exports.splitOnLast(cliPath.replace(/\\/g, '/'), '/')[1];
+    var scriptName = exports.splitOnLast(scriptNameExt, '.')[0];
+    var cliLang = exports.splitOnLast(scriptName, '-')[0];
     var lang = ALIAS[cliLang] || cliLang;
     var cwd = process.cwd();
     var cmdArgs = args.slice(2);
@@ -37,20 +36,21 @@ function cli(args) {
     // process.exit(0);
     var isDefault = cmdArgs.length == 0;
     if (isDefault) {
-        execDefault(lang, cwd);
+        execDefault(lang, cwd, dtosExt);
         return;
     }
-    var isHelp = ["-h", "/h", "-?", "/?", "--help", "/help"].indexOf(cmdArgs[0]) >= 0;
+    var arg1 = cmdArgs[0];
+    var isHelp = ["-h", "/h", "-?", "/?", "--help", "/help"].indexOf(arg1) >= 0;
     if (isHelp) {
         execHelp(lang, scriptName, dtosExt);
         return;
     }
-    if (cmdArgs.length >= 1 && cmdArgs.length <= 2) {
+    if (["-", "/"].indexOf(arg1[0]) === -1 && cmdArgs.length <= 2) {
         try {
-            var target = cmdArgs[0];
+            var target = arg1;
             if (target.indexOf("://") >= 0) {
                 var typesUrl = target.indexOf("/types/" + lang) == -1
-                    ? utils_1.combinePaths(target, "/types/" + lang)
+                    ? exports.combinePaths(target, "/types/" + lang)
                     : target;
                 var fileName = "Reference." + dtosExt;
                 if (cmdArgs.length >= 2 && cmdArgs[1]) {
@@ -76,8 +76,7 @@ function cli(args) {
         }
         return;
     }
-    console.log("Unknown Command:");
-    console.log(scriptName + " " + cmdArgs.join(' ') + "\n");
+    console.log("Unknown Command: " + scriptName + " " + cmdArgs.join(' '));
     execHelp(lang, scriptName, dtosExt);
     return -1;
 }
@@ -91,7 +90,11 @@ function handleError(e, msg) {
     process.exit(-1);
 }
 function updateReference(lang, cwd, target) {
-    var existingRefPath = utils_1.combinePaths(cwd, target);
+    var targetExt = exports.splitOnLast(target, '.')[1];
+    var langExt = exports.splitOnLast(REF_EXT[lang], '.')[1];
+    if (targetExt != langExt)
+        throw new Error("Invalid file type: '" + target + "', expected '." + langExt + "' source file");
+    var existingRefPath = exports.combinePaths(cwd, target);
     if (!fs.existsSync(existingRefPath))
         throw new Error("File does not exist: " + existingRefPath.replace(/\\/g, '/'));
     var existingRefSrc = fs.readFileSync(existingRefPath, 'utf8');
@@ -115,7 +118,7 @@ function updateReference(lang, cwd, target) {
         }
         else if (baseUrl) {
             if (line.indexOf("//") === -1 && line.indexOf("'") === -1) {
-                var parts = utils_1.splitOnFirst(line, ":");
+                var parts = exports.splitOnFirst(line, ":");
                 if (parts.length === 2) {
                     var key = parts[0].trim();
                     var val = parts[1].trim();
@@ -131,13 +134,12 @@ function updateReference(lang, cwd, target) {
         qs += qs.length > 0 ? "&" : "?";
         qs += key + "=" + encodeURIComponent(options[key]);
     }
-    var typesUrl = utils_1.combinePaths(baseUrl, "/types/" + lang) + qs;
+    var typesUrl = exports.combinePaths(baseUrl, "/types/" + lang) + qs;
     saveReference(lang, typesUrl, cwd, target);
 }
 exports.updateReference = updateReference;
 function saveReference(lang, typesUrl, cwd, fileName) {
-    var filePath = utils_1.combinePaths(cwd, fileName);
-    var dtos = "";
+    var filePath = exports.combinePaths(cwd, fileName);
     request(typesUrl, function (err, res, dtos) {
         if (err)
             handleError(err);
@@ -146,7 +148,7 @@ function saveReference(lang, typesUrl, cwd, fileName) {
                 throw new Error("ERROR: Invalid Response from " + typesUrl);
             var filePathExists = fs.existsSync(filePath);
             fs.writeFileSync(filePath, dtos, 'utf8');
-            console.log(filePathExists ? "Saved to: " + fileName : "Updated: " + fileName);
+            console.log(filePathExists ? "Updated: " + fileName : "Saved to: " + fileName);
             if (lang == "swift") {
                 importSwiftClientSources(cwd);
             }
@@ -157,8 +159,27 @@ function saveReference(lang, typesUrl, cwd, fileName) {
     });
 }
 exports.saveReference = saveReference;
-function execDefault(lang, cwd) {
-    console.log('\nexecDefault', { lang: lang, cwd: cwd });
+function execDefault(lang, cwd, dtosExt) {
+    var matchingFiles = [];
+    fs.readdirSync(cwd).forEach(function (entry) {
+        if (entry.endsWith(dtosExt)) {
+            matchingFiles.push(entry);
+        }
+    });
+    if (matchingFiles.length === 0) {
+        console.error("No '." + dtosExt + "' files found");
+        process.exit(-1);
+    }
+    else {
+        matchingFiles.forEach(function (target) {
+            try {
+                updateReference(lang, cwd, target);
+            }
+            catch (e) {
+                console.error(e.message || e);
+            }
+        });
+    }
 }
 exports.execDefault = execDefault;
 function execHelp(lang, scriptName, dtosExt) {
@@ -167,7 +188,7 @@ function execHelp(lang, scriptName, dtosExt) {
 }
 exports.execHelp = execHelp;
 function importSwiftClientSources(cwd) {
-    var clientSrcPath = utils_1.combinePaths(cwd, "JsonServiceClient.swift");
+    var clientSrcPath = exports.combinePaths(cwd, "JsonServiceClient.swift");
     if (!fs.existsSync(clientSrcPath)) {
         var clientSrcUrl_1 = "https://servicestack.net/dist/swiftref/JsonServiceClient.swift";
         request(clientSrcUrl_1, function (err, res, clientSrc) {
@@ -186,4 +207,45 @@ function importSwiftClientSources(cwd) {
     }
 }
 exports.importSwiftClientSources = importSwiftClientSources;
+//utils
+exports.splitOnFirst = function (s, c) {
+    if (!s)
+        return [s];
+    var pos = s.indexOf(c);
+    return pos >= 0 ? [s.substring(0, pos), s.substring(pos + 1)] : [s];
+};
+exports.splitOnLast = function (s, c) {
+    if (!s)
+        return [s];
+    var pos = s.lastIndexOf(c);
+    return pos >= 0
+        ? [s.substring(0, pos), s.substring(pos + 1)]
+        : [s];
+};
+exports.combinePaths = function () {
+    var paths = [];
+    for (var _i = 0; _i < arguments.length; _i++) {
+        paths[_i] = arguments[_i];
+    }
+    var parts = [], i, l;
+    for (i = 0, l = paths.length; i < l; i++) {
+        var arg = paths[i];
+        parts = arg.indexOf("://") === -1
+            ? parts.concat(arg.split("/"))
+            : parts.concat(arg.lastIndexOf("/") === arg.length - 1 ? arg.substring(0, arg.length - 1) : arg);
+    }
+    var combinedPaths = [];
+    for (i = 0, l = parts.length; i < l; i++) {
+        var part = parts[i];
+        if (!part || part === ".")
+            continue;
+        if (part === "..")
+            combinedPaths.pop();
+        else
+            combinedPaths.push(part);
+    }
+    if (parts[0] === "")
+        combinedPaths.unshift("");
+    return combinedPaths.join("/") || (combinedPaths.length ? "/" : ".");
+};
 //# sourceMappingURL=index.js.map

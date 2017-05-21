@@ -43,13 +43,13 @@
     "cli",
     "service",
     "reference",
-    "typescript",
     "csharp",
-    "fsharp",
+    "typescript",
+    "swift",
     "java",
     "kotlin",
-    "swift",
-    "vb.net"
+    "vb.net",
+    "fsharp"
   ],
   "author": "ServiceStack",
   "homepage": "https://github.com/ServiceStack/servicestack-cli",
