@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 var fs = require("fs");
 var url = require("url");
 var request = require("request");
+var packageConf = require('../package.json');
 var ALIAS = {
     "cs": "csharp",
     "ts": "typescript",
@@ -33,19 +34,25 @@ function cli(args) {
     var cmdArgs = args.slice(2);
     var dtosExt = REF_EXT[lang];
     // console.log({ cliPath, scriptNameExt, cliLang, lang, cmdArgs, dtosExt });
+    // console.log(packageConf.version);
     // process.exit(0);
     var isDefault = cmdArgs.length == 0;
     if (isDefault) {
         execDefault(lang, cwd, dtosExt);
         return;
     }
-    var arg1 = cmdArgs[0];
-    var isHelp = ["-h", "/h", "-?", "/?", "--help", "/help"].indexOf(arg1) >= 0;
+    var arg1 = normalizeSwitches(cmdArgs[0]);
+    var isHelp = ["/h", "/?", "/help"].indexOf(arg1) >= 0;
     if (isHelp) {
         execHelp(lang, scriptName, dtosExt);
         return;
     }
-    if (["-", "/"].indexOf(arg1[0]) === -1 && cmdArgs.length <= 2) {
+    var isVersion = ["/v", "/version"].indexOf(arg1) >= 0;
+    if (isVersion) {
+        console.log("Version: " + packageConf.version);
+        return;
+    }
+    if (["/"].indexOf(arg1[0]) === -1 && cmdArgs.length <= 2) {
         try {
             var target = arg1;
             if (target.indexOf("://") >= 0) {
@@ -76,7 +83,7 @@ function cli(args) {
         }
         return;
     }
-    console.log("Unknown Command: " + scriptName + " " + cmdArgs.join(' '));
+    console.log("Unknown Command: " + scriptName + " " + cmdArgs.join(' ') + "\n");
     execHelp(lang, scriptName, dtosExt);
     return -1;
 }
@@ -183,7 +190,7 @@ function execDefault(lang, cwd, dtosExt) {
 }
 exports.execDefault = execDefault;
 function execHelp(lang, scriptName, dtosExt) {
-    var USAGE = "\nUsage:\n\nAdd a new ServiceStack Reference:\n    " + scriptName + " {BaseUrl}\n    " + scriptName + " {BaseUrl} {FileName}\n\nUpdate all *." + dtosExt + " ServiceStack References in Current Directory:\n    " + scriptName + "\n\nUpdate an existing ServiceStack Reference:\n    " + scriptName + " {FileName}." + dtosExt + "\n\nShow usage:\n    -h --help -?\n    /h  /help /?";
+    var USAGE = "Version:  " + packageConf.version + "\nSyntax:   " + scriptName + " [options] [BaseUrl|File]\n\nAdd a new ServiceStack Reference:\n    " + scriptName + " {BaseUrl}\n    " + scriptName + " {BaseUrl} {File}\n\nUpdate all *." + dtosExt + " ServiceStack References in Current Directory:\n    " + scriptName + "\n\nUpdate an existing ServiceStack Reference:\n    " + scriptName + " {File}." + dtosExt + "\n\nOptions:\n    -h, --help               Print this message\n    -v, --version            Print this version";
     console.log(USAGE);
 }
 exports.execHelp = execHelp;
@@ -207,6 +214,7 @@ function importSwiftClientSources(cwd) {
     }
 }
 exports.importSwiftClientSources = importSwiftClientSources;
+var normalizeSwitches = function (cmd) { return cmd.replace(/^-+/, '/'); };
 //utils
 exports.splitOnFirst = function (s, c) {
     if (!s)

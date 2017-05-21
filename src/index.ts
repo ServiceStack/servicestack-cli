@@ -2,6 +2,8 @@ import * as fs from "fs";
 import * as url from 'url';
 import * as request from "request";
 
+var packageConf = require('../package.json');
+
 const ALIAS = {
     "cs": "csharp",
     "ts": "typescript",
@@ -35,6 +37,7 @@ export function cli(args: string[]) {
     const dtosExt = REF_EXT[lang];
 
     // console.log({ cliPath, scriptNameExt, cliLang, lang, cmdArgs, dtosExt });
+    // console.log(packageConf.version);
     // process.exit(0);
 
     const isDefault = cmdArgs.length == 0;
@@ -44,14 +47,20 @@ export function cli(args: string[]) {
         return;
     }
 
-    const arg1 = cmdArgs[0];
-    const isHelp = ["-h", "/h", "-?", "/?", "--help", "/help"].indexOf(arg1) >= 0;
+    const arg1 = normalizeSwitches(cmdArgs[0]);
+
+    const isHelp = ["/h", "/?", "/help"].indexOf(arg1) >= 0;
     if (isHelp) {
         execHelp(lang, scriptName, dtosExt);
         return;
     }
+    const isVersion = ["/v", "/version"].indexOf(arg1) >= 0;
+    if (isVersion) {
+        console.log(`Version: ${packageConf.version}`);
+        return;
+    }
 
-    if (["-","/"].indexOf(arg1[0]) === -1 && cmdArgs.length <= 2) {
+    if (["/"].indexOf(arg1[0]) === -1 && cmdArgs.length <= 2) {
         try {
             const target = arg1;
 
@@ -87,7 +96,7 @@ export function cli(args: string[]) {
         return;
     }
 
-    console.log(`Unknown Command: ${scriptName} ${cmdArgs.join(' ')}`);
+    console.log(`Unknown Command: ${scriptName} ${cmdArgs.join(' ')}\n`);
     execHelp(lang, scriptName, dtosExt);
     return -1;
 }
@@ -207,22 +216,22 @@ export function execDefault(lang: string, cwd: string, dtosExt:string) {
 }
 
 export function execHelp(lang: string, scriptName: string, dtosExt: string) {
-    const USAGE = `
-Usage:
+    const USAGE = `Version:  ${packageConf.version}
+Syntax:   ${scriptName} [options] [BaseUrl|File]
 
 Add a new ServiceStack Reference:
     ${scriptName} {BaseUrl}
-    ${scriptName} {BaseUrl} {FileName}
+    ${scriptName} {BaseUrl} {File}
 
 Update all *.${dtosExt} ServiceStack References in Current Directory:
     ${scriptName}
 
 Update an existing ServiceStack Reference:
-    ${scriptName} {FileName}.${dtosExt}
+    ${scriptName} {File}.${dtosExt}
 
-Show usage:
-    -h --help -?
-    /h  /help /?`;
+Options:
+    -h, --help               Print this message
+    -v, --version            Print this version`;
 
     console.log(USAGE);
 }
@@ -251,6 +260,8 @@ export function importSwiftClientSources(cwd:string) {
         });
     }
 }
+
+const normalizeSwitches = (cmd:string) => cmd.replace(/^-+/,'/');
 
 //utils
 export const splitOnFirst = (s: string, c: string): string[] => {
