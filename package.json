@@ -1,0 +1,66 @@
+{
+  "name": "servicestack-cli",
+  "version": "1.0.0",
+  "description": "Simple CLI utils for ServiceStack projects",
+  "main": "./src/index.js",
+  "bin": {
+    "csharp-ref": "bin/csharp-ref.js",
+    "cs-ref": "bin/cs-ref.js",
+    "typescript-ref": "bin/typescript-ref.js",
+    "ts-ref": "bin/ts-ref.js",
+    "typescriptd-ref": "bin/typescriptd-ref.js",
+    "tsd-ref": "bin/tsd-ref.js",
+    "swift-ref": "bin/swift-ref.js",
+    "java-ref": "bin/java-ref.js",
+    "kotlin-ref": "bin/kotlin-ref.js",
+    "kt-ref": "bin/kt-ref.js",
+    "vb-ref": "bin/vb-ref.js",
+    "vbnet-ref": "bin/vbnet-ref.js",
+    "fsharp-ref": "bin/fsharp-ref.js",
+    "fs-ref": "bin/fs-ref.js"
+  },
+  "scripts": {
+    "test": "jest",
+    "test-watch": "jest --watch",
+    "test-coverage": "jest --coverage"
+  },
+  "jest": {
+    "moduleFileExtensions": [
+      "ts",
+      "tsx",
+      "js"
+    ],
+    "transform": {
+      "^.+\\.(ts|tsx)$": "<rootDir>/preprocessor.js"
+    },
+    "testMatch": [
+      "**/__tests__/*.(ts|tsx|js)",
+      "**/?(*.)(spec|test).(js|ts)"
+    ]
+  },
+  "keywords": [
+    "servicestack",
+    "cli",
+    "service",
+    "reference",
+    "typescript",
+    "csharp",
+    "fsharp",
+    "java",
+    "kotlin",
+    "swift",
+    "vb.net"
+  ],
+  "author": "ServiceStack",
+  "homepage": "https://github.com/ServiceStack/servicestack-cli",
+  "devDependencies": {
+    "@types/jest": "^19.2.3",
+    "@types/node": "^7.0.21",
+    "@types/request": "0.0.43",
+    "jest": "^20.0.3",
+    "typescript": "^2.3.2"
+  },
+  "dependencies": {
+    "request": "^2.81.0"
+  }
+}
