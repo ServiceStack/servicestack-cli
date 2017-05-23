@@ -18,20 +18,20 @@ Prerequisites: Node.js (>=4.x, 6.x preferred), npm version 3+.
 
     $ npm install -g servicestack-cli
 
-This will make the following utilities availble from your command-line:
+This will make the following utilities availble from your command-line which will let you download the Server DTO classes for a remote ServiceStack endpoint in your chosen language which you can use with ServiceStack's generic Service clients to be able to make end-to-end API calls.
 
- - `cs-ref`, `csharp-ref` - Add/Update **C#** DTO classes
- - `ts-ref`, `typescript-ref` - Add/Update **TypeScript** DTO classes
- - `tsd-ref`, `typescriptd-ref` - Add/Update **TypeScript Definition** .d.ts DTO classes
- - `swift-ref` - Add/Update **Swift** DTO classes
- - `java-ref` - Add/Update **Java** DTO classes
- - `kt-ref`, `kotlin-ref` - Add/Update **Kotlin** DTO classes
- - `vb-ref`, `vbnet-ref` - Add/Update **VB.NET** DTO classes
- - `fs-ref`, `fsharp-ref` - Add/Update **F#** DTO classes
+| Script | Alias | Language |
+| ------ | ----- | -------- |
+| csharp-ref | cs-ref | C# |
+| typescript-ref | ts-ref | TypeScript |
+| typescriptd-ref | tsd-ref | TypeScript Declarations |
+| swift-ref | | Swift |
+| java-ref | | Java |
+| kotlin-ref | kt-ref | Kotlin |
+| vbnet-ref | vb-ref | VB.NET |
+| fsharp-ref | fs-ref | F# |
 
 ## Usage
-
-Each of the above utils will let you download the Server DTO classes for a remote ServiceStack endpoint in your chosen language which you can use with ServiceStack's generic Service clients to enable an end-to-end API.
 
 We'll walkthrough an example using TypeScript to download Server Types from the [techstacks.io](http://techstacks.io) ServiceStack Website see how this works:
 
