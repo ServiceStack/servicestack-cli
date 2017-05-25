@@ -159,6 +159,14 @@ function saveReference(lang, typesUrl, cwd, fileName) {
             if (lang == "swift") {
                 importSwiftClientSources(cwd);
             }
+            if (process.env.SERVICESTACK_TELEMETRY_OPTOUT != 1) {
+                var cmdType = filePathExists ? "updateref" : "addref";
+                var statsUrl = "https://servicestack.net/stats/" + cmdType + "/record?name=" + lang + "&source=cli&version=" + packageConf.version;
+                try {
+                    request(statsUrl);
+                }
+                catch (ignore) { }
+            }
         }
         catch (e) {
             handleError(e, "ERROR: Could not write DTOs to: " + fileName);
@@ -190,7 +198,7 @@ function execDefault(lang, cwd, dtosExt) {
 }
 exports.execDefault = execDefault;
 function execHelp(lang, scriptName, dtosExt) {
-    var USAGE = "Version:  " + packageConf.version + "\nSyntax:   " + scriptName + " [options] [BaseUrl|File]\n\nAdd a new ServiceStack Reference:\n    " + scriptName + " {BaseUrl}\n    " + scriptName + " {BaseUrl} {File}\n\nUpdate all *." + dtosExt + " ServiceStack References in Current Directory:\n    " + scriptName + "\n\nUpdate an existing ServiceStack Reference:\n    " + scriptName + " {File}." + dtosExt + "\n\nOptions:\n    -h, --help               Print this message\n    -v, --version            Print this version";
+    var USAGE = "Version:  " + packageConf.version + "\nSyntax:   " + scriptName + " [options] [BaseUrl|File]\n\nAdd a new ServiceStack Reference:\n    " + scriptName + " {BaseUrl}\n    " + scriptName + " {BaseUrl} {File}\n\nUpdate all *." + dtosExt + " ServiceStack References in Current Directory:\n    " + scriptName + "\n\nUpdate an existing ServiceStack Reference:\n    " + scriptName + " {File}." + dtosExt + "\n\nOptions:\n    -h, --help               Print this message\n    -v, --version            Print this version\n\nThis tool collects anonymous usage to determine the most used languages to improve your experience.\nTo disable set SERVICESTACK_TELEMETRY_OPTOUT=1 environment variable to 1 using your favorite shell.";
     console.log(USAGE);
 }
 exports.execHelp = execHelp;

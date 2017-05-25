@@ -186,6 +186,12 @@ export function saveReference(lang: string, typesUrl: string, cwd: string, fileN
                 importSwiftClientSources(cwd);
             }
 
+            if (process.env.SERVICESTACK_TELEMETRY_OPTOUT != 1) {
+                var cmdType = filePathExists ? "updateref" : "addref";
+                const statsUrl = `https://servicestack.net/stats/${cmdType}/record?name=${lang}&source=cli&version=${packageConf.version}`;
+                try { request(statsUrl); } catch(ignore){}
+            }
+
         } catch (e) {
             handleError(e, `ERROR: Could not write DTOs to: ${fileName}`);
         }
@@ -231,7 +237,10 @@ Update an existing ServiceStack Reference:
 
 Options:
     -h, --help               Print this message
-    -v, --version            Print this version`;
+    -v, --version            Print this version
+
+This tool collects anonymous usage to determine the most used languages to improve your experience.
+To disable set SERVICESTACK_TELEMETRY_OPTOUT=1 environment variable to 1 using your favorite shell.`;
 
     console.log(USAGE);
 }
