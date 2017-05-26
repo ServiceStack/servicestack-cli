@@ -134,8 +134,7 @@ To make API requests using TypeScript's async/await feature we'll need to create
 }
 ```
 
-Now we can create a new `await-demo.ts` file and start using TypeScript's async/await feature which as it can only be called within an `async` function, which we can wrap 
-and immediately call with:
+Now we can create a new `await-demo.ts` file and start using TypeScript's async/await feature which as it can only be called within an `async` function, we'll need to wrap in an async function:
 
 ```ts
 import { JsonServiceClient } from 'servicestack-client';
