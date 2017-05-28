@@ -33,7 +33,7 @@ This will make the following utilities availble from your command-line which wil
 
 ## Usage
 
-We'll walkthrough an example using TypeScript to download Server Types from the [techstacks.io](http://techstacks.io) ServiceStack Website see how this works:
+We'll walkthrough an example using TypeScript to download Server Types from the [techstacks.io](http://techstacks.io) ServiceStack Website to see how this works:
 
 ### Adding a ServiceStack Reference
 
