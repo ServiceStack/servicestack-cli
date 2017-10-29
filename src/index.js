@@ -159,7 +159,7 @@ function saveReference(lang, typesUrl, cwd, fileName) {
             if (lang == "swift") {
                 importSwiftClientSources(cwd);
             }
-            if (process.env.SERVICESTACK_TELEMETRY_OPTOUT != 1) {
+            if (process.env.SERVICESTACK_TELEMETRY_OPTOUT != "1") {
                 var cmdType = filePathExists ? "updateref" : "addref";
                 var statsUrl = "https://servicestack.net/stats/" + cmdType + "/record?name=" + lang + "&source=cli&version=" + packageConf.version;
                 try {

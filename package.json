@@ -53,14 +53,14 @@
   ],
   "author": "ServiceStack",
   "homepage": "https://github.com/ServiceStack/servicestack-cli",
-  "devDependencies": {
-    "@types/jest": "^19.2.3",
-    "@types/node": "^7.0.21",
-    "@types/request": "0.0.43",
-    "jest": "^20.0.3",
-    "typescript": "^2.3.2"
-  },
   "dependencies": {
-    "request": "^2.81.0"
+    "request": "^2.83.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^21.1.5",
+    "@types/node": "^8.0.47",
+    "@types/request": "2.0.7",
+    "jest": "^21.2.1",
+    "typescript": "^2.5.3"
   }
 }

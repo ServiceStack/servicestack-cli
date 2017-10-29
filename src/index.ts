@@ -186,7 +186,7 @@ export function saveReference(lang: string, typesUrl: string, cwd: string, fileN
                 importSwiftClientSources(cwd);
             }
 
-            if (process.env.SERVICESTACK_TELEMETRY_OPTOUT != 1) {
+            if (process.env.SERVICESTACK_TELEMETRY_OPTOUT != "1") {
                 var cmdType = filePathExists ? "updateref" : "addref";
                 const statsUrl = `https://servicestack.net/stats/${cmdType}/record?name=${lang}&source=cli&version=${packageConf.version}`;
                 try { request(statsUrl); } catch(ignore){}
