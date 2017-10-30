@@ -4,6 +4,7 @@
   "description": "Simple CLI utils for ServiceStack projects",
   "main": "./src/index.js",
   "bin": {
+    "dotnet-new": "bin/dotnet-new.js",
     "csharp-ref": "bin/csharp-ref.js",
     "cs-ref": "bin/cs-ref.js",
     "typescript-ref": "bin/typescript-ref.js",
