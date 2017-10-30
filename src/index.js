@@ -41,7 +41,7 @@ function cli(args) {
         execDefault(lang, cwd, dtosExt);
         return;
     }
-    var arg1 = normalizeSwitches(cmdArgs[0]);
+    var arg1 = exports.normalizeSwitches(cmdArgs[0]);
     var isHelp = ["/h", "/?", "/help"].indexOf(arg1) >= 0;
     if (isHelp) {
         execHelp(lang, scriptName, dtosExt);
@@ -222,7 +222,7 @@ function importSwiftClientSources(cwd) {
     }
 }
 exports.importSwiftClientSources = importSwiftClientSources;
-var normalizeSwitches = function (cmd) { return cmd.replace(/^-+/, '/'); };
+exports.normalizeSwitches = function (cmd) { return cmd.replace(/^-+/, '/'); };
 //utils
 exports.splitOnFirst = function (s, c) {
     if (!s)

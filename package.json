@@ -54,6 +54,8 @@
   "author": "ServiceStack",
   "homepage": "https://github.com/ServiceStack/servicestack-cli",
   "dependencies": {
+    "ascii-table": "0.0.9",
+    "extract-zip": "^1.6.5",
     "request": "^2.83.0"
   },
   "devDependencies": {

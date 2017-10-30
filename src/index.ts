@@ -270,7 +270,7 @@ export function importSwiftClientSources(cwd:string) {
     }
 }
 
-const normalizeSwitches = (cmd:string) => cmd.replace(/^-+/,'/');
+export const normalizeSwitches = (cmd:string) => cmd.replace(/^-+/,'/');
 
 //utils
 export const splitOnFirst = (s: string, c: string): string[] => {
