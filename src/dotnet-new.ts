@@ -5,10 +5,11 @@ import * as url from 'url';
 import * as request from "request";
 import * as AsciiTable from "ascii-table";
 import * as extractZip from "extract-zip";
-import * as isBinaryFile from "isbinaryfile";
 import { normalizeSwitches, splitOnLast } from './index';
 
 var packageConf = require('../package.json');
+
+const TemplatePlaceholder = "MyApp";
 
 let DEBUG = false;
 const DefultConifgFile = 'dotnet-new.config';
@@ -37,8 +38,8 @@ interface IRelease {
 
 const VALID_NAME_CHARS = /^[a-zA-Z_$][0-9a-zA-Z_$.]*$/;
 const ILLEGAL_NAMES = 'CON|AUX|PRN|COM1|LP2|.|..'.split('|');
-const IGNORE_EXTENSIONS = "jpg|jpeg|png|gif|ico|eot|otf|webp|svg|ttf|woff|woff2|mp4|webm|wav|mp3|m4a|aac|oga|ogg|dll|pdb|so|zip|key|snk|p12"
-     + "swf|xap|class|doc|xls|ppt".split('|');
+const IGNORE_EXTENSIONS = "jpg|jpeg|png|gif|ico|eot|otf|webp|svg|ttf|woff|woff2|mp4|webm|wav|mp3|m4a|aac|oga|ogg|dll|exe|pdb|so|zip"
+    + "|key|snk|p12|swf|xap|class|doc|xls|ppt".split('|');
 
 export function cli(args: string[]) {
 
@@ -60,32 +61,64 @@ export function cli(args: string[]) {
         cmdArgs = cmdArgs.slice(2);
     }
 
-    const config = getConfigSync(path.join(cwd, configFile));
-
-    if (DEBUG) console.log('config', config, cmdArgs);
-
     if (["/d", "/debug"].indexOf(arg1) >= 0) {
         DEBUG = true;
         cmdArgs = cmdArgs.slice(1);
     }
 
-    if (cmdArgs.length == 0) {
-        execShowTemplates(config);
-        return;
-    }
+    const config = getConfigSync(path.join(cwd, configFile));
+    if (DEBUG) console.log('config', config, cmdArgs);
 
-    const isHelp = ["/h", "/?", "/help"].indexOf(arg1) >= 0;
-    if (isHelp) {
-        execHelp();
+    if (cmdArgs.length == 0) {
+        showTemplates(config);
         return;
     }
-    const isVersion = ["/v", "/version"].indexOf(arg1) >= 0;
-    if (isVersion) {
+    if (["/h", "/?", "/help"].indexOf(arg1) >= 0) {
+        showHelp();
+        return;
+    }
+    if (["/v", "/version"].indexOf(arg1) >= 0) {
         console.log(`Version: ${packageConf.version}`);
         return;
     }
+    if (["/clean"].indexOf(arg1) >= 0) {
+        rmdir(cacheDirName());
+        console.log(`Cleared package cache: ${cacheDirName()}`)
+        return;
+    }
 
-    execCreateProject(config, cmdArgs[0], cmdArgs.length > 1 ? cmdArgs[1] : null);
+    const template = cmdArgs[0];
+
+    if (template.startsWith("/")) {
+        showHelp("Unknown switch: " + arg1);
+        return;
+    }
+
+    const projectName = cmdArgs.length > 1 ? cmdArgs[1] : null;
+    const isUrl = template.indexOf('://') >= 0;
+    const isZip = template.endsWith('.zip');
+
+    if (isUrl && isZip) {
+        createProjectFromZipUrl(template, projectName);
+    } else if (isZip) {
+        createProjectFromZip(template, projectName);
+    } else if (isUrl) {
+        //https://github.com/NetCoreTemplates/react-app
+        //https://api.github.com/repos/NetCoreTemplates/react-app/releases
+        if (template.endsWith("/releases")) {
+            createProjectFromReleaseUrl(template, projectName);
+        } else if (template.indexOf('github.com/') >= 0) {
+            var repoName = template.substring(template.indexOf('github.com/') + 'github.com/'.length);
+            if (repoName.split('/').length == 2) {
+                var releaseUrl = `https://api.github.com/repos/${repoName}/releases`;
+                createProjectFromReleaseUrl(releaseUrl, projectName);
+                return;
+            }
+        }
+        return showHelp("Invalid URL: only .zip URLs, GitHub repo URLs or release HTTP API URLs are supported.");
+    } else {
+        createProject(config, template, projectName);
+    }
 }
 
 function getConfigSync(path: string): IConfig {
@@ -109,7 +142,7 @@ function handleError(e, msg: string = null) {
     process.exit(-1);
 }
 
-export function execShowTemplates(config: IConfig) {
+export function showTemplates(config: IConfig) {
     if (DEBUG) console.log('execShowTemplates', config);
 
     if (config.sources == null || config.sources.length == 0)
@@ -157,7 +190,7 @@ export function execShowTemplates(config: IConfig) {
     }
 }
 
-export function execCreateProject(config: IConfig, template: string, projectName: string) {
+export function createProject(config: IConfig, template: string, projectName: string) {
     if (DEBUG) console.log('execCreateProject', config, template, projectName);
 
     if (config.sources == null || config.sources.length == 0)
@@ -199,7 +232,7 @@ export function execCreateProject(config: IConfig, template: string, projectName
                     if (repo.name === template) {
                         found = true;
                         let releaseUrl = urlFromTemplate(repo.releases_url);
-                        createProject(releaseUrl, projectName, version);
+                        createProjectFromReleaseUrl(releaseUrl, projectName, version);
                         return;
                     }
                 });
@@ -221,7 +254,7 @@ export function execCreateProject(config: IConfig, template: string, projectName
 
 const urlFromTemplate = (urlTemplate: string) => splitOnLast(urlTemplate, '{')[0];
 
-export function createProject(releasesUrl: string, projectName: string, version: string = null) {
+export function createProjectFromReleaseUrl(releasesUrl: string, projectName: string, version: string = null) {
     if (DEBUG) console.log(`Creating project from: ${releasesUrl}`);
 
     let found = false;
@@ -280,11 +313,14 @@ export function createProjectFromZipUrl(zipUrl: string, projectName: string) {
     }
 }
 
-export function createProjectFromZip(zipFile: string, projectName: string) {
+export function createProjectFromZip(zipFile: string, projectName: string=null) {
     assertValidProjectName(projectName);
 
     if (!fs.existsSync(zipFile))
         throw new Error(`File does not exist: ${zipFile}`);
+
+    if (!projectName)
+        projectName = TemplatePlaceholder;
 
     let rootDirs = [];
 
@@ -328,17 +364,17 @@ export function renameTemplateFolder(dir: string, projectName: string) {
         const newName = fileName.replace(replaceRegEx, projectName);
         const newPath = path.join(dir, newName);
         fs.renameSync(oldPath, newPath);
-        
+
         if (fstat.isFile()) {
             if (IGNORE_EXTENSIONS.indexOf(ext) == -1) {
                 fs.readFile(newPath, 'utf8', function (err, data) {
-                    if (err) 
+                    if (err)
                         return console.log(`ERROR readFile '${fileName}': ${err}`);
-    
+
                     var result = data.replace(replaceRegEx, projectName);
 
                     fs.writeFile(newPath, result, 'utf8', function (err) {
-                        if (err) 
+                        if (err)
                             return console.log("ERROR: " + err);
                     });
                 });
@@ -351,7 +387,7 @@ export function renameTemplateFolder(dir: string, projectName: string) {
 }
 
 export function assertValidProjectName(projectName: string) {
-    if (projectName == null)
+    if (!projectName)
         return;
 
     if (!VALID_NAME_CHARS.test(projectName))
@@ -361,9 +397,9 @@ export function assertValidProjectName(projectName: string) {
         handleError('Illegal project name: ' + projectName);
 }
 
-export function execHelp() {
+export function showHelp(msg: string = null) {
     const USAGE = `Version:  ${packageConf.version}
-Syntax:   dotnet-new [options] [ProjectUrl|TemplateName] [ProjectName]
+Syntax:   dotnet-new [options] [TemplateName|Repo|ProjectUrl.zip] [ProjectName]
 
 View a list of available project templates:
     dotnet-new
@@ -372,16 +408,25 @@ Create a new project:
     dotnet-new [TemplateName]
     dotnet-new [TemplateName] [ProjectName]
 
-    dotnet-new [ProjectUrl]
-    dotnet-new [ProjectUrl] [ProjectName]
+    # Use latest release of GitHub Project
+    dotnet-new [RepoUrl]
+    dotnet-new [RepoUrl] [ProjectName]
+
+    # Direct link to project .zip tarball
+    dotnet-new [ProjectUrl.zip]
+    dotnet-new [ProjectUrl.zip] [ProjectName]
 
 Options:
-    -c, --config [ConfigFile] Use specified config file
-    -h, --help                Print this message
-    -v, --version             Print this version
+    -c, --config [ConfigFile]  Use specified config file
+    -h, --help                 Print this message
+    -v, --version              Print this version
+    --clean                    Clear template cache
 
 This tool collects anonymous usage to determine the most used languages to improve your experience.
 To disable set SERVICESTACK_TELEMETRY_OPTOUT=1 environment variable to 1 using your favorite shell.`;
+
+    if (msg != null)
+        console.log(msg + "\n");
 
     console.log(USAGE);
 }
@@ -402,6 +447,19 @@ export const mkdir = (dirPath: string) => {
         return curDir;
     }, initDir);
 }
+export const rmdir = (path: string) => {
+    if (fs.existsSync(path)) {
+        fs.readdirSync(path).forEach(function (file, index) {
+            var curPath = path + "/" + file;
+            if (fs.lstatSync(curPath).isDirectory()) {
+                rmdir(curPath);
+            } else { // delete file
+                fs.unlinkSync(curPath);
+            }
+        });
+        fs.rmdirSync(path);
+    }
+};
 
 //The MIT License (MIT)
 const matchOperatorsRe = /[|\\{}()[\]^$+*?.]/g;

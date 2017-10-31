@@ -8,6 +8,7 @@ var AsciiTable = require("ascii-table");
 var extractZip = require("extract-zip");
 var index_1 = require("./index");
 var packageConf = require('../package.json');
+var TemplatePlaceholder = "MyApp";
 var DEBUG = false;
 var DefultConifgFile = 'dotnet-new.config';
 var DefultConifg = {
@@ -18,8 +19,8 @@ var headers = {
 };
 var VALID_NAME_CHARS = /^[a-zA-Z_$][0-9a-zA-Z_$.]*$/;
 var ILLEGAL_NAMES = 'CON|AUX|PRN|COM1|LP2|.|..'.split('|');
-var IGNORE_EXTENSIONS = "jpg|jpeg|png|gif|ico|eot|otf|webp|svg|ttf|woff|woff2|mp4|webm|wav|mp3|m4a|aac|oga|ogg|dll|pdb|so|zip|key|snk|p12"
-    + "swf|xap|class|doc|xls|ppt".split('|');
+var IGNORE_EXTENSIONS = "jpg|jpeg|png|gif|ico|eot|otf|webp|svg|ttf|woff|woff2|mp4|webm|wav|mp3|m4a|aac|oga|ogg|dll|exe|pdb|so|zip"
+    + "|key|snk|p12|swf|xap|class|doc|xls|ppt".split('|');
 function cli(args) {
     var nodeExe = args[0];
     var cliPath = args[1];
@@ -36,28 +37,63 @@ function cli(args) {
         configFile = cmdArgs[1];
         cmdArgs = cmdArgs.slice(2);
     }
-    var config = getConfigSync(path.join(cwd, configFile));
-    if (DEBUG)
-        console.log('config', config, cmdArgs);
     if (["/d", "/debug"].indexOf(arg1) >= 0) {
         DEBUG = true;
         cmdArgs = cmdArgs.slice(1);
     }
+    var config = getConfigSync(path.join(cwd, configFile));
+    if (DEBUG)
+        console.log('config', config, cmdArgs);
     if (cmdArgs.length == 0) {
-        execShowTemplates(config);
+        showTemplates(config);
         return;
     }
-    var isHelp = ["/h", "/?", "/help"].indexOf(arg1) >= 0;
-    if (isHelp) {
-        execHelp();
+    if (["/h", "/?", "/help"].indexOf(arg1) >= 0) {
+        showHelp();
         return;
     }
-    var isVersion = ["/v", "/version"].indexOf(arg1) >= 0;
-    if (isVersion) {
+    if (["/v", "/version"].indexOf(arg1) >= 0) {
         console.log("Version: " + packageConf.version);
         return;
     }
-    execCreateProject(config, cmdArgs[0], cmdArgs.length > 1 ? cmdArgs[1] : null);
+    if (["/clean"].indexOf(arg1) >= 0) {
+        exports.rmdir(exports.cacheDirName());
+        console.log("Cleared package cache: " + exports.cacheDirName());
+        return;
+    }
+    var template = cmdArgs[0];
+    if (template.startsWith("/")) {
+        showHelp("Unknown switch: " + arg1);
+        return;
+    }
+    var projectName = cmdArgs.length > 1 ? cmdArgs[1] : null;
+    var isUrl = template.indexOf('://') >= 0;
+    var isZip = template.endsWith('.zip');
+    if (isUrl && isZip) {
+        createProjectFromZipUrl(template, projectName);
+    }
+    else if (isZip) {
+        createProjectFromZip(template, projectName);
+    }
+    else if (isUrl) {
+        //https://github.com/NetCoreTemplates/react-app
+        //https://api.github.com/repos/NetCoreTemplates/react-app/releases
+        if (template.endsWith("/releases")) {
+            createProjectFromReleaseUrl(template, projectName);
+        }
+        else if (template.indexOf('github.com/') >= 0) {
+            var repoName = template.substring(template.indexOf('github.com/') + 'github.com/'.length);
+            if (repoName.split('/').length == 2) {
+                var releaseUrl = "https://api.github.com/repos/" + repoName + "/releases";
+                createProjectFromReleaseUrl(releaseUrl, projectName);
+                return;
+            }
+        }
+        return showHelp("Invalid URL: only .zip URLs, GitHub repo URLs or release HTTP API URLs are supported.");
+    }
+    else {
+        createProject(config, template, projectName);
+    }
 }
 exports.cli = cli;
 function getConfigSync(path) {
@@ -80,7 +116,7 @@ function handleError(e, msg) {
     console.error(e.message || e);
     process.exit(-1);
 }
-function execShowTemplates(config) {
+function showTemplates(config) {
     if (DEBUG)
         console.log('execShowTemplates', config);
     if (config.sources == null || config.sources.length == 0)
@@ -122,8 +158,8 @@ function execShowTemplates(config) {
         catch (ignore) { }
     }
 }
-exports.execShowTemplates = execShowTemplates;
-function execCreateProject(config, template, projectName) {
+exports.showTemplates = showTemplates;
+function createProject(config, template, projectName) {
     if (DEBUG)
         console.log('execCreateProject', config, template, projectName);
     if (config.sources == null || config.sources.length == 0)
@@ -159,7 +195,7 @@ function execCreateProject(config, template, projectName) {
                     if (repo.name === template) {
                         found = true;
                         var releaseUrl = urlFromTemplate(repo.releases_url);
-                        createProject(releaseUrl, projectName, version);
+                        createProjectFromReleaseUrl(releaseUrl, projectName, version);
                         return;
                     }
                 });
@@ -180,9 +216,9 @@ function execCreateProject(config, template, projectName) {
         catch (ignore) { }
     }
 }
-exports.execCreateProject = execCreateProject;
+exports.createProject = createProject;
 var urlFromTemplate = function (urlTemplate) { return index_1.splitOnLast(urlTemplate, '{')[0]; };
-function createProject(releasesUrl, projectName, version) {
+function createProjectFromReleaseUrl(releasesUrl, projectName, version) {
     if (version === void 0) { version = null; }
     if (DEBUG)
         console.log("Creating project from: " + releasesUrl);
@@ -217,7 +253,7 @@ function createProject(releasesUrl, projectName, version) {
         }
     });
 }
-exports.createProject = createProject;
+exports.createProjectFromReleaseUrl = createProjectFromReleaseUrl;
 function createProjectFromZipUrl(zipUrl, projectName) {
     var cachedName = exports.cacheFileName(exports.filenamifyUrl(zipUrl));
     if (!fs.existsSync(cachedName)) {
@@ -240,9 +276,12 @@ function createProjectFromZipUrl(zipUrl, projectName) {
 }
 exports.createProjectFromZipUrl = createProjectFromZipUrl;
 function createProjectFromZip(zipFile, projectName) {
+    if (projectName === void 0) { projectName = null; }
     assertValidProjectName(projectName);
     if (!fs.existsSync(zipFile))
         throw new Error("File does not exist: " + zipFile);
+    if (!projectName)
+        projectName = TemplatePlaceholder;
     var rootDirs = [];
     extractZip(zipFile, {
         dir: process.cwd(),
@@ -309,7 +348,7 @@ function renameTemplateFolder(dir, projectName) {
 }
 exports.renameTemplateFolder = renameTemplateFolder;
 function assertValidProjectName(projectName) {
-    if (projectName == null)
+    if (!projectName)
         return;
     if (!VALID_NAME_CHARS.test(projectName))
         handleError('Illegal char in project name: ' + projectName);
@@ -317,11 +356,14 @@ function assertValidProjectName(projectName) {
         handleError('Illegal project name: ' + projectName);
 }
 exports.assertValidProjectName = assertValidProjectName;
-function execHelp() {
-    var USAGE = "Version:  " + packageConf.version + "\nSyntax:   dotnet-new [options] [ProjectUrl|TemplateName] [ProjectName]\n\nView a list of available project templates:\n    dotnet-new\n\nCreate a new project:\n    dotnet-new [TemplateName]\n    dotnet-new [TemplateName] [ProjectName]\n\n    dotnet-new [ProjectUrl]\n    dotnet-new [ProjectUrl] [ProjectName]\n\nOptions:\n    -c, --config [ConfigFile] Use specified config file\n    -h, --help                Print this message\n    -v, --version             Print this version\n\nThis tool collects anonymous usage to determine the most used languages to improve your experience.\nTo disable set SERVICESTACK_TELEMETRY_OPTOUT=1 environment variable to 1 using your favorite shell.";
+function showHelp(msg) {
+    if (msg === void 0) { msg = null; }
+    var USAGE = "Version:  " + packageConf.version + "\nSyntax:   dotnet-new [options] [TemplateName|Repo|ProjectUrl.zip] [ProjectName]\n\nView a list of available project templates:\n    dotnet-new\n\nCreate a new project:\n    dotnet-new [TemplateName]\n    dotnet-new [TemplateName] [ProjectName]\n\n    # Use latest release of GitHub Project\n    dotnet-new [RepoUrl]\n    dotnet-new [RepoUrl] [ProjectName]\n\n    # Direct link to project .zip tarball\n    dotnet-new [ProjectUrl.zip]\n    dotnet-new [ProjectUrl.zip] [ProjectName]\n\nOptions:\n    -c, --config [ConfigFile]  Use specified config file\n    -h, --help                 Print this message\n    -v, --version              Print this version\n    --clean                    Clear template cache\n\nThis tool collects anonymous usage to determine the most used languages to improve your experience.\nTo disable set SERVICESTACK_TELEMETRY_OPTOUT=1 environment variable to 1 using your favorite shell.";
+    if (msg != null)
+        console.log(msg + "\n");
     console.log(USAGE);
 }
-exports.execHelp = execHelp;
+exports.showHelp = showHelp;
 //Helpers
 exports.cacheFileName = function (fileName) { return path.join(os.homedir(), '.servicestack', 'cache', fileName); };
 exports.cacheDirName = function () { return path.join(os.homedir(), '.servicestack', 'cache'); };
@@ -336,6 +378,20 @@ exports.mkdir = function (dirPath) {
         }
         return curDir;
     }, initDir);
+};
+exports.rmdir = function (path) {
+    if (fs.existsSync(path)) {
+        fs.readdirSync(path).forEach(function (file, index) {
+            var curPath = path + "/" + file;
+            if (fs.lstatSync(curPath).isDirectory()) {
+                exports.rmdir(curPath);
+            }
+            else {
+                fs.unlinkSync(curPath);
+            }
+        });
+        fs.rmdirSync(path);
+    }
 };
 //The MIT License (MIT)
 var matchOperatorsRe = /[|\\{}()[\]^$+*?.]/g;
