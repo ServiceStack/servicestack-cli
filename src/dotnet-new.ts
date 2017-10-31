@@ -14,14 +14,22 @@ const TemplatePlaceholder = "MyApp";
 let DEBUG = false;
 const DefultConifgFile = 'dotnet-new.config';
 const DefultConifg = {
-    "sources": ["https://api.github.com/orgs/NetCoreTemplates/repos"]
+    "sources": [
+        { "name": "ServiceStack .NET Core 2.0 C# Templates", "url": "https://api.github.com/orgs/NetCoreTemplates/repos" } 
+    ]
 };
 const headers = {
     'User-Agent': 'servicestack-cli'
 };
 
 interface IConfig {
-    sources: Array<string>
+    sources: Array<ISource>
+}
+
+interface ISource
+{
+    name: string;
+    url: string;
 }
 
 interface IRepo {
@@ -89,7 +97,7 @@ export function cli(args: string[]) {
 
     const template = cmdArgs[0];
 
-    if (template.startsWith("/")) {
+    if (template.startsWith("/") && template.split('/').length == 1) {
         showHelp("Unknown switch: " + arg1);
         return;
     }
@@ -149,19 +157,16 @@ export function showTemplates(config: IConfig) {
         handleError('No sources defined');
 
     var count = 0;
-    var table = new AsciiTable();
-    table.setHeading('', 'template', 'description');
 
     const done = () => {
-        console.log(table.toString());
-        console.log('\nUsage: dotnet-new <template> ProjectName')
+        console.log('Usage: dotnet-new <template> ProjectName')
     };
 
     var pending = 0;
-    config.sources.forEach(url => {
+    config.sources.forEach(source => {
 
         pending++;
-        request({ url, headers }, (err, res, json) => {
+        request({ url:source.url, headers }, (err, res, json) => {
             if (err)
                 handleError(err);
             if (res.statusCode >= 400)
@@ -170,11 +175,17 @@ export function showTemplates(config: IConfig) {
             try {
                 var repos = JSON.parse(json);
 
+                var table = new AsciiTable(source.name);
+                table.setHeading('', 'template', 'description');
+
                 for (var i = 0; i < repos.length; i++) {
                     var repo = repos[i] as IRepo;
                     table.addRow(++count, repo.name, repo.description);
                 }
 
+                console.log(table.toString());
+                console.log();
+                
                 if (--pending == 0)
                     done();
 
@@ -213,11 +224,11 @@ export function createProject(config: IConfig, template: string, projectName: st
     }
 
     let pending = 0;
-    config.sources.forEach(url => {
+    config.sources.forEach(source => {
 
         pending++;
         if (found) return;
-        request({ url, headers }, (err, res, json) => {
+        request({ url:source.url, headers }, (err, res, json) => {
             if (err)
                 handleError(err);
             if (res.statusCode >= 400)
