@@ -252,7 +252,7 @@ function createProjectFromReleaseUrl(releasesUrl, projectName, version) {
                 if (releasesUrl.indexOf(githubUrl) >= 0 && releasesUrl.endsWith('/releases')) {
                     var repoName = releasesUrl.substring(releasesUrl.indexOf(githubUrl) + githubUrl.length, releasesUrl.length - '/releases'.length);
                     var masterZipUrl = "https://github.com/" + repoName + "/archive/master.zip";
-                    console.log('Using GitHub master archive from: ' + masterZipUrl);
+                    console.log('Fallback to using master archive from: ' + masterZipUrl);
                     createProjectFromZipUrl(masterZipUrl, projectName);
                 }
             }
@@ -322,6 +322,7 @@ function createProjectFromZip(zipFile, projectName) {
     });
 }
 exports.createProjectFromZip = createProjectFromZip;
+// Rename can fail on Windows when Windows Defender real-time AV is on: https://github.com/react-community/create-react-native-app/issues/191#issuecomment-304073970
 function renameTemplateFolder(dir, projectName) {
     if (DEBUG)
         console.log('Renaming files and folders in: ', dir);

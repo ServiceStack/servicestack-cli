@@ -300,7 +300,7 @@ export function createProjectFromReleaseUrl(releasesUrl: string, projectName: st
                 if (releasesUrl.indexOf(githubUrl) >= 0 && releasesUrl.endsWith('/releases')) {
                     let repoName = releasesUrl.substring(releasesUrl.indexOf(githubUrl) + githubUrl.length, releasesUrl.length - '/releases'.length);
                     let masterZipUrl = `https://github.com/${repoName}/archive/master.zip`;
-                    console.log('Using GitHub master archive from: ' + masterZipUrl);
+                    console.log('Fallback to using master archive from: ' + masterZipUrl);
                     createProjectFromZipUrl(masterZipUrl, projectName);
                 }
             }
