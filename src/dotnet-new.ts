@@ -277,7 +277,7 @@ export function createProjectFromReleaseUrl(releasesUrl: string, projectName: st
             handleError(`Request failed '${releasesUrl}': ${res.statusCode} ${res.statusMessage}`);
 
         try {
-            var releases = JSON.parse(json) as IRelease[];
+            let releases = JSON.parse(json) as IRelease[];
             releases.forEach(release => {
                 if (found)
                     return;
@@ -294,7 +294,15 @@ export function createProjectFromReleaseUrl(releasesUrl: string, projectName: st
             });
 
             if (!found) {
-                console.log('Could not find any Releases');
+                console.log('Could not find any Releases for this project.');
+
+                const githubUrl = 'api.github.com/repos/';
+                if (releasesUrl.indexOf(githubUrl) >= 0 && releasesUrl.endsWith('/releases')) {
+                    let repoName = releasesUrl.substring(releasesUrl.indexOf(githubUrl) + githubUrl.length, releasesUrl.length - '/releases'.length);
+                    let masterZipUrl = `https://github.com/${repoName}/archive/master.zip`;
+                    console.log('Using GitHub master archive from: ' + masterZipUrl);
+                    createProjectFromZipUrl(masterZipUrl, projectName);
+                }
             }
         } catch (e) {
             if (DEBUG) console.log('Invalid JSON: ', json);
@@ -360,6 +368,7 @@ export function createProjectFromZip(zipFile: string, projectName: string=null) 
     })
 }
 
+// Rename can fail on Windows when Windows Defender real-time AV is on: https://github.com/react-community/create-react-native-app/issues/191#issuecomment-304073970
 export function renameTemplateFolder(dir: string, projectName: string) {
     if (DEBUG) console.log('Renaming files and folders in: ', dir);
 
