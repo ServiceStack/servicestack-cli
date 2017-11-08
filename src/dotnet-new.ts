@@ -15,7 +15,8 @@ let DEBUG = false;
 const DefultConifgFile = 'dotnet-new.config';
 const DefultConifg = {
     "sources": [
-        { "name": "ServiceStack .NET Core 2.0 C# Templates", "url": "https://api.github.com/orgs/NetCoreTemplates/repos" } 
+        { "name": "ServiceStack .NET Core 2.0 C# Templates", "url": "https://api.github.com/orgs/NetCoreTemplates/repos" }, 
+        { "name": "ServiceStack .NET Framework C# Templates", "url": "https://api.github.com/orgs/NetFrameworkTemplates/repos" } 
     ]
 };
 const headers = {
@@ -156,15 +157,21 @@ export function showTemplates(config: IConfig) {
     if (config.sources == null || config.sources.length == 0)
         handleError('No sources defined');
 
-    var count = 0;
-
+    let results:AsciiTable[] = [];
     const done = () => {
+
+        results.forEach(table => {
+            console.log(table.toString());
+            console.log();
+        });
+
         console.log('Usage: dotnet-new <template> ProjectName')
     };
 
     var pending = 0;
-    config.sources.forEach(source => {
+    config.sources.forEach((source, index) => {
 
+        let count = 0;
         pending++;
         request({ url:source.url, headers }, (err, res, json) => {
             if (err)
@@ -183,8 +190,7 @@ export function showTemplates(config: IConfig) {
                     table.addRow(++count, repo.name, repo.description);
                 }
 
-                console.log(table.toString());
-                console.log();
+                results[index] = table;
                 
                 if (--pending == 0)
                     done();
@@ -428,11 +434,11 @@ Create a new project:
     dotnet-new [TemplateName]
     dotnet-new [TemplateName] [ProjectName]
 
-    # Use latest release of GitHub Project
+    # Use latest release of a GitHub Project
     dotnet-new [RepoUrl]
     dotnet-new [RepoUrl] [ProjectName]
 
-    # Direct link to project .zip tarball
+    # Direct link to project release .zip tarball
     dotnet-new [ProjectUrl.zip]
     dotnet-new [ProjectUrl.zip] [ProjectName]
 

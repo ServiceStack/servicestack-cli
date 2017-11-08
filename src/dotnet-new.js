@@ -14,7 +14,8 @@ var DEBUG = false;
 var DefultConifgFile = 'dotnet-new.config';
 var DefultConifg = {
     "sources": [
-        { "name": "ServiceStack .NET Core 2.0 C# Templates", "url": "https://api.github.com/orgs/NetCoreTemplates/repos" }
+        { "name": "ServiceStack .NET Core 2.0 C# Templates", "url": "https://api.github.com/orgs/NetCoreTemplates/repos" },
+        { "name": "ServiceStack .NET Framework C# Templates", "url": "https://api.github.com/orgs/NetFrameworkTemplates/repos" }
     ]
 };
 var headers = {
@@ -124,12 +125,17 @@ function showTemplates(config) {
         console.log('execShowTemplates', config);
     if (config.sources == null || config.sources.length == 0)
         handleError('No sources defined');
-    var count = 0;
+    var results = [];
     var done = function () {
+        results.forEach(function (table) {
+            console.log(table.toString());
+            console.log();
+        });
         console.log('Usage: dotnet-new <template> ProjectName');
     };
     var pending = 0;
-    config.sources.forEach(function (source) {
+    config.sources.forEach(function (source, index) {
+        var count = 0;
         pending++;
         request({ url: source.url, headers: headers }, function (err, res, json) {
             if (err)
@@ -144,8 +150,7 @@ function showTemplates(config) {
                     var repo = repos[i];
                     table.addRow(++count, repo.name, repo.description);
                 }
-                console.log(table.toString());
-                console.log();
+                results[index] = table;
                 if (--pending == 0)
                     done();
             }
@@ -370,7 +375,7 @@ function assertValidProjectName(projectName) {
 exports.assertValidProjectName = assertValidProjectName;
 function showHelp(msg) {
     if (msg === void 0) { msg = null; }
-    var USAGE = "Version:  " + packageConf.version + "\nSyntax:   dotnet-new [options] [TemplateName|Repo|ProjectUrl.zip] [ProjectName]\n\nView a list of available project templates:\n    dotnet-new\n\nCreate a new project:\n    dotnet-new [TemplateName]\n    dotnet-new [TemplateName] [ProjectName]\n\n    # Use latest release of GitHub Project\n    dotnet-new [RepoUrl]\n    dotnet-new [RepoUrl] [ProjectName]\n\n    # Direct link to project .zip tarball\n    dotnet-new [ProjectUrl.zip]\n    dotnet-new [ProjectUrl.zip] [ProjectName]\n\nOptions:\n    -c, --config [ConfigFile]  Use specified config file\n    -h, --help                 Print this message\n    -v, --version              Print this version\n    --clean                    Clear template cache\n\nThis tool collects anonymous usage to determine the most used languages to improve your experience.\nTo disable set SERVICESTACK_TELEMETRY_OPTOUT=1 environment variable to 1 using your favorite shell.";
+    var USAGE = "Version:  " + packageConf.version + "\nSyntax:   dotnet-new [options] [TemplateName|Repo|ProjectUrl.zip] [ProjectName]\n\nView a list of available project templates:\n    dotnet-new\n\nCreate a new project:\n    dotnet-new [TemplateName]\n    dotnet-new [TemplateName] [ProjectName]\n\n    # Use latest release of a GitHub Project\n    dotnet-new [RepoUrl]\n    dotnet-new [RepoUrl] [ProjectName]\n\n    # Direct link to project release .zip tarball\n    dotnet-new [ProjectUrl.zip]\n    dotnet-new [ProjectUrl.zip] [ProjectName]\n\nOptions:\n    -c, --config [ConfigFile]  Use specified config file\n    -h, --help                 Print this message\n    -v, --version              Print this version\n    --clean                    Clear template cache\n\nThis tool collects anonymous usage to determine the most used languages to improve your experience.\nTo disable set SERVICESTACK_TELEMETRY_OPTOUT=1 environment variable to 1 using your favorite shell.";
     if (msg != null)
         console.log(msg + "\n");
     console.log(USAGE);
