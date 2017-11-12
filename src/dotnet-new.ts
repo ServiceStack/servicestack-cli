@@ -218,7 +218,7 @@ export function createProject(config: IConfig, template: string, projectName: st
     let found = false;
     const done = () => {
         if (!found) {
-            console.log('Could not find template: ' + template);
+            console.log(`Could not find template '${template}'. Run 'dotnet-new' to view list of templates available.`);
         }
     };
 

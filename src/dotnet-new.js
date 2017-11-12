@@ -177,7 +177,7 @@ function createProject(config, template, projectName) {
     var found = false;
     var done = function () {
         if (!found) {
-            console.log('Could not find template: ' + template);
+            console.log("Could not find template '" + template + "'. Run 'dotnet-new' to view list of templates available.");
         }
     };
     var version = null;
