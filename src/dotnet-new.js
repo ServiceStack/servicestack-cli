@@ -24,7 +24,7 @@ var headers = {
 var VALID_NAME_CHARS = /^[a-zA-Z_$][0-9a-zA-Z_$.]*$/;
 var ILLEGAL_NAMES = 'CON|AUX|PRN|COM1|LP2|.|..'.split('|');
 var IGNORE_EXTENSIONS = "jpg|jpeg|png|gif|ico|eot|otf|webp|svg|ttf|woff|woff2|mp4|webm|wav|mp3|m4a|aac|oga|ogg|dll|exe|pdb|so|zip"
-    + "|key|snk|p12|swf|xap|class|doc|xls|ppt".split('|');
+    + "|key|snk|p12|swf|xap|class|doc|xls|ppt|sqlite|db".split('|');
 function cli(args) {
     var nodeExe = args[0];
     var cliPath = args[1];
@@ -123,6 +123,7 @@ function handleError(e, msg) {
 function showTemplates(config) {
     if (DEBUG)
         console.log('execShowTemplates', config);
+    console.log('Help: dotnet-new -h\n');
     if (config.sources == null || config.sources.length == 0)
         handleError('No sources defined');
     var results = [];
@@ -371,6 +372,8 @@ function assertValidProjectName(projectName) {
         handleError('Illegal char in project name: ' + projectName);
     if (ILLEGAL_NAMES.indexOf(projectName) != -1)
         handleError('Illegal project name: ' + projectName);
+    if (fs.existsSync(projectName))
+        handleError('Project folder already exists: ' + projectName);
 }
 exports.assertValidProjectName = assertValidProjectName;
 function showHelp(msg) {

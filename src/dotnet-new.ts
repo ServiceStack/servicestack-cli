@@ -48,7 +48,7 @@ interface IRelease {
 const VALID_NAME_CHARS = /^[a-zA-Z_$][0-9a-zA-Z_$.]*$/;
 const ILLEGAL_NAMES = 'CON|AUX|PRN|COM1|LP2|.|..'.split('|');
 const IGNORE_EXTENSIONS = "jpg|jpeg|png|gif|ico|eot|otf|webp|svg|ttf|woff|woff2|mp4|webm|wav|mp3|m4a|aac|oga|ogg|dll|exe|pdb|so|zip"
-    + "|key|snk|p12|swf|xap|class|doc|xls|ppt".split('|');
+    + "|key|snk|p12|swf|xap|class|doc|xls|ppt|sqlite|db".split('|');
 
 export function cli(args: string[]) {
 
@@ -154,6 +154,8 @@ function handleError(e, msg: string = null) {
 export function showTemplates(config: IConfig) {
     if (DEBUG) console.log('execShowTemplates', config);
 
+    console.log('Help: dotnet-new -h\n');
+
     if (config.sources == null || config.sources.length == 0)
         handleError('No sources defined');
 
@@ -165,7 +167,7 @@ export function showTemplates(config: IConfig) {
             console.log();
         });
 
-        console.log('Usage: dotnet-new <template> ProjectName')
+        console.log('Usage: dotnet-new <template> ProjectName');
     };
 
     var pending = 0;
@@ -421,6 +423,9 @@ export function assertValidProjectName(projectName: string) {
 
     if (ILLEGAL_NAMES.indexOf(projectName) != -1)
         handleError('Illegal project name: ' + projectName);
+
+    if (fs.existsSync(projectName))
+        handleError('Project folder already exists: ' + projectName);
 }
 
 export function showHelp(msg: string = null) {
