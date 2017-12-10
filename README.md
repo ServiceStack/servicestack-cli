@@ -1,6 +1,10 @@
+# @servicestack/cli
+
+[![](https://raw.githubusercontent.com/ServiceStack/Assets/master/img/release-notes/servicestack-heart-typescript.png)](http://docs.servicestack.net/typescript-add-servicestack-reference)
+
 ## Simple command-line utilities for ServiceStack
 
-The servicestack-cli provides simple command-line utilities to easily Add and Update ServiceStack References for all of ServiceStack's supported languages:
+The `@servicestack/cli` provides simple command-line utilities to easily Add and Update ServiceStack References for all of ServiceStack's supported languages:
 
 ### Supported Languages
 
@@ -16,7 +20,7 @@ The servicestack-cli provides simple command-line utilities to easily Add and Up
 
 Prerequisites: Node.js (>=4.x, 6.x preferred), npm version 3+.
 
-    $ npm install -g servicestack-cli
+    $ npm install -g @servicestack/cli
 
 This will make the following utilities availble from your command-line which will let you download the Server DTO classes for a remote ServiceStack endpoint in your chosen language which you can use with ServiceStack's generic Service clients to be able to make end-to-end API calls.
 
@@ -81,19 +85,18 @@ To make it more wrist-friendly you can also use the shorter `ts-ref` alias inste
 
 ### Installing Generic Service Client
 
-Now we have our TechStacks Server DTOs we can use them with the generic `JsonServiceClient` in the [servicestack-client](https://www.npmjs.com/package/servicestack-client) npm package to make Typed API Calls.
+Now we have our TechStacks Server DTOs we can use them with the generic `JsonServiceClient` in the [@servicestack/client](https://www.npmjs.com/package/@servicestack/client) npm package to make Typed API Calls.
 
-#### Install servicestack-client
+#### Install @servicestack/client
 
-    $ npm install --save servicestack-client
+    $ npm install @servicestack/client
 
 #### TechStacks Example
 
-Once installed create a `demo.ts` file with the example below using both the `JsonServiceClient` from the **servicestack-client** npm package and the Server DTOs we 
-want to use from our local `techstacks.dtos.ts` above:
+Once installed create a `demo.ts` file with the example below using both the `JsonServiceClient` from the **@servicestack/client** npm package and the Server DTOs we want to use from our local `techstacks.dtos.ts` above:
 
 ```ts
-import { JsonServiceClient } from 'servicestack-client';
+import { JsonServiceClient } from '@servicestack/client';
 import { GetTechnology, GetTechnologyResponse } from './techstacks.dtos';
 
 var client = new JsonServiceClient("http://techstacks.io")
@@ -137,7 +140,7 @@ To make API requests using TypeScript's async/await feature we'll need to create
 Now we can create a new `await-demo.ts` file and start using TypeScript's async/await feature which as it can only be called within an `async` function, we'll need to wrap in an async function:
 
 ```ts
-import { JsonServiceClient } from 'servicestack-client';
+import { JsonServiceClient } from '@servicestack/client';
 import { GetTechnology, GetTechnologyResponse } from './techstacks.dtos';
 
 var client = new JsonServiceClient("http://techstacks.io")
