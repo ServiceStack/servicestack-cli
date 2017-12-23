@@ -16,7 +16,8 @@ const DefultConifgFile = 'dotnet-new.config';
 const DefultConifg = {
     "sources": [
         { "name": "ServiceStack .NET Core 2.0 C# Templates", "url": "https://api.github.com/orgs/NetCoreTemplates/repos" }, 
-        { "name": "ServiceStack .NET Framework C# Templates", "url": "https://api.github.com/orgs/NetFrameworkTemplates/repos" } 
+        { "name": "ServiceStack .NET Framework C# Templates", "url": "https://api.github.com/orgs/NetFrameworkTemplates/repos" },
+        { "name": "ServiceStack .NET Framework ASP.NET Core C# Templates", "url": "https://api.github.com/orgs/NetFrameworkCoreTemplates/repos" },
     ]
 };
 const headers = {
@@ -98,8 +99,13 @@ export function cli(args: string[]) {
 
     const template = cmdArgs[0];
 
-    if (template.startsWith("/") && template.split('/').length == 1) {
+    if (template.startsWith("-") || (template.startsWith("/") && template.split('/').length == 1)) {
         showHelp("Unknown switch: " + arg1);
+        return;
+    }
+
+    if (parseInt(template) >= 0) {
+        showHelp("Please specify a template name.");
         return;
     }
 
