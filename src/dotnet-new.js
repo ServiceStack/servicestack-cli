@@ -31,6 +31,8 @@ function cli(args) {
     var cliPath = args[1];
     var cwd = process.cwd();
     var cmdArgs = args.slice(2);
+    if (process.env.GITHUB_OAUTH_TOKEN)
+        headers['Authorization'] = "token " + process.env.GITHUB_OAUTH_TOKEN;
     if (DEBUG)
         console.log({ cwd: cwd, cmdArgs: cmdArgs });
     var arg1 = cmdArgs.length > 0

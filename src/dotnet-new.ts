@@ -58,6 +58,9 @@ export function cli(args: string[]) {
     const cwd = process.cwd();
     let cmdArgs = args.slice(2);
 
+    if (process.env.GITHUB_OAUTH_TOKEN)
+        headers['Authorization'] = `token ${process.env.GITHUB_OAUTH_TOKEN}`;
+
     if (DEBUG) console.log({ cwd, cmdArgs });
 
     const arg1 = cmdArgs.length > 0
