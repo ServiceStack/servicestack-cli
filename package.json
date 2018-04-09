@@ -18,7 +18,8 @@
     "vb-ref": "bin/vb-ref.js",
     "vbnet-ref": "bin/vbnet-ref.js",
     "fsharp-ref": "bin/fsharp-ref.js",
-    "fs-ref": "bin/fs-ref.js"
+    "fs-ref": "bin/fs-ref.js",
+    "dart-ref": "bin/dart-ref.js"
   },
   "scripts": {
     "test": "jest",

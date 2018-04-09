@@ -22,6 +22,7 @@ var REF_EXT = {
     "kotlin": "dtos.kt",
     "vbnet": "dtos.vb",
     "fsharp": "dtos.fs",
+    "dart": "dtos.dart",
 };
 function cli(args) {
     var nodeExe = args[0];
