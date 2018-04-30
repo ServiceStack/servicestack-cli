@@ -11,12 +11,16 @@ var index_1 = require("./index");
 var packageConf = require('../package.json');
 var TemplatePlaceholder = "MyApp";
 var DEBUG = false;
-var DefultConifgFile = 'dotnet-new.config';
-var DefultConifg = {
+var DefaultConfigFile = 'dotnet-new.config';
+var DefaultConfig = {
     "sources": [
         { "name": "ServiceStack .NET Core 2.0 C# Templates", "url": "https://api.github.com/orgs/NetCoreTemplates/repos" },
         { "name": "ServiceStack .NET Framework C# Templates", "url": "https://api.github.com/orgs/NetFrameworkTemplates/repos" },
         { "name": "ServiceStack .NET Framework ASP.NET Core C# Templates", "url": "https://api.github.com/orgs/NetFrameworkCoreTemplates/repos" },
+    ],
+    "postinstall": [
+        { "test": "MyApp/package.json", "exec": 'cd "MyApp" && npm install' },
+        { "test": "MyApp.sln", "exec": "nuget restore" },
     ]
 };
 var headers = {
@@ -26,6 +30,15 @@ var VALID_NAME_CHARS = /^[a-zA-Z_$][0-9a-zA-Z_$.]*$/;
 var ILLEGAL_NAMES = 'CON|AUX|PRN|COM1|LP2|.|..'.split('|');
 var IGNORE_EXTENSIONS = "jpg|jpeg|png|gif|ico|eot|otf|webp|svg|ttf|woff|woff2|mp4|webm|wav|mp3|m4a|aac|oga|ogg|dll|exe|pdb|so|zip"
     + "|key|snk|p12|swf|xap|class|doc|xls|ppt|sqlite|db".split('|');
+var camelToKebab = function (str) { return str.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase(); };
+var escapeRegEx = function (str) { return str.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&"); };
+var replaceRegEx = /MyApp/g;
+var replaceKebabRegEx = /my-app/g;
+var exec = require('child_process').execSync;
+function runScript(script) {
+    process.env.FORCE_COLOR = "1";
+    exec(script, { stdio: [process.stdin, process.stdout, process.stderr] });
+}
 function cli(args) {
     var nodeExe = args[0];
     var cliPath = args[1];
@@ -39,7 +52,7 @@ function cli(args) {
         ? index_1.normalizeSwitches(cmdArgs[0])
         : null;
     var isConfig = arg1 && ["/c", "/config"].indexOf(arg1) >= 0;
-    var configFile = DefultConifgFile;
+    var configFile = DefaultConfigFile;
     if (isConfig) {
         configFile = cmdArgs[1];
         cmdArgs = cmdArgs.slice(2);
@@ -78,39 +91,79 @@ function cli(args) {
         return;
     }
     var projectName = cmdArgs.length > 1 ? cmdArgs[1] : null;
+    var projectNameKebab = camelToKebab(projectName);
+    var isGitHubProject = template.indexOf('://') == -1 && template.split('/').length == 2;
+    if (isGitHubProject)
+        template = "https://github.com/" + template;
     var isUrl = template.indexOf('://') >= 0;
     var isZip = template.endsWith('.zip');
+    var done = function (err) {
+        if (err) {
+            console.log(err);
+        }
+        else {
+            if (fs.existsSync(projectName)) {
+                process.chdir(projectName);
+                (config.postinstall || []).forEach(function (rule) {
+                    var path = rule.test.replace(replaceRegEx, projectName)
+                        .replace(replaceKebabRegEx, projectNameKebab);
+                    if (fs.existsSync(path)) {
+                        if (!rule.exec)
+                            return;
+                        var exec = rule.exec.replace(replaceRegEx, projectName)
+                            .replace(replaceKebabRegEx, projectNameKebab);
+                        if (DEBUG)
+                            console.log("Matched: '" + rule.test + "', executing '" + exec + "'...");
+                        try {
+                            runScript(exec);
+                        }
+                        catch (e) {
+                            console.log(e.message || e);
+                        }
+                    }
+                    else {
+                        if (DEBUG)
+                            console.log("path does not exist: '" + path + "' in '" + process.cwd() + "'");
+                    }
+                });
+            }
+            else {
+                if (DEBUG)
+                    console.log(projectName + " does not exist");
+            }
+        }
+    };
     if (isUrl && isZip) {
-        createProjectFromZipUrl(template, projectName);
+        createProjectFromZipUrl(template, projectName, done);
     }
     else if (isZip) {
-        createProjectFromZip(template, projectName);
+        createProjectFromZip(template, projectName, done);
     }
     else if (isUrl) {
         //https://github.com/NetCoreTemplates/react-app
         //https://api.github.com/repos/NetCoreTemplates/react-app/releases
         if (template.endsWith("/releases")) {
-            createProjectFromReleaseUrl(template, projectName);
+            createProjectFromReleaseUrl(template, projectName, null, done);
         }
         else if (template.indexOf('github.com/') >= 0) {
             var repoName = template.substring(template.indexOf('github.com/') + 'github.com/'.length);
             if (repoName.split('/').length == 2) {
                 var releaseUrl = "https://api.github.com/repos/" + repoName + "/releases";
-                createProjectFromReleaseUrl(releaseUrl, projectName);
+                createProjectFromReleaseUrl(releaseUrl, projectName, null, done);
                 return;
             }
         }
         return showHelp("Invalid URL: only .zip URLs, GitHub repo URLs or release HTTP API URLs are supported.");
     }
     else {
-        createProject(config, template, projectName);
+        createProject(config, template, projectName, done);
     }
 }
 exports.cli = cli;
 function getConfigSync(path) {
     try {
         if (!fs.existsSync(path))
-            return DefultConifg;
+            return DefaultConfig;
         var json = fs.readFileSync(path, 'utf8');
         var config = JSON.parse(json);
         return config;
@@ -176,16 +229,19 @@ function showTemplates(config) {
     }
 }
 exports.showTemplates = showTemplates;
-function createProject(config, template, projectName) {
+function createProject(config, template, projectName, done) {
     if (DEBUG)
         console.log('execCreateProject', config, template, projectName);
     if (config.sources == null || config.sources.length == 0)
         handleError('No sources defined');
     assertValidProjectName(projectName);
     var found = false;
-    var done = function () {
+    var cb = function () {
         if (!found) {
-            console.log("Could not find template '" + template + "'. Run 'dotnet-new' to view list of templates available.");
+            done("Could not find template '" + template + "'. Run 'dotnet-new' to view list of templates available.");
+        }
+        else {
+            done();
         }
     };
     var version = null;
@@ -212,12 +268,12 @@ function createProject(config, template, projectName) {
                     if (repo.name === template) {
                         found = true;
                         var releaseUrl = urlFromTemplate(repo.releases_url);
-                        createProjectFromReleaseUrl(releaseUrl, projectName, version);
+                        createProjectFromReleaseUrl(releaseUrl, projectName, version, cb);
                         return;
                     }
                 });
                 if (--pending == 0)
-                    done();
+                    cb();
             }
             catch (e) {
                 if (DEBUG)
@@ -235,8 +291,7 @@ function createProject(config, template, projectName) {
 }
 exports.createProject = createProject;
 var urlFromTemplate = function (urlTemplate) { return index_1.splitOnLast(urlTemplate, '{')[0]; };
-function createProjectFromReleaseUrl(releasesUrl, projectName, version) {
-    if (version === void 0) { version = null; }
+function createProjectFromReleaseUrl(releasesUrl, projectName, version, done) {
     if (DEBUG)
         console.log("Creating project from: " + releasesUrl);
     var found = false;
@@ -257,7 +312,7 @@ function createProjectFromReleaseUrl(releasesUrl, projectName, version) {
                 if (release.zipball_url == null)
                     handleError("Release " + release.name + " does not have zipball_url");
                 found = true;
-                createProjectFromZipUrl(release.zipball_url, projectName);
+                createProjectFromZipUrl(release.zipball_url, projectName, done);
             });
             if (!found) {
                 console.log('Could not find any Releases for this project.');
@@ -266,7 +321,7 @@ function createProjectFromReleaseUrl(releasesUrl, projectName, version) {
                     var repoName = releasesUrl.substring(releasesUrl.indexOf(githubUrl) + githubUrl.length, releasesUrl.length - '/releases'.length);
                     var masterZipUrl = "https://github.com/" + repoName + "/archive/master.zip";
                     console.log('Fallback to using master archive from: ' + masterZipUrl);
-                    createProjectFromZipUrl(masterZipUrl, projectName);
+                    createProjectFromZipUrl(masterZipUrl, projectName, done);
                 }
             }
         }
@@ -278,7 +333,7 @@ function createProjectFromReleaseUrl(releasesUrl, projectName, version) {
     });
 }
 exports.createProjectFromReleaseUrl = createProjectFromReleaseUrl;
-function createProjectFromZipUrl(zipUrl, projectName) {
+function createProjectFromZipUrl(zipUrl, projectName, done) {
     var cachedName = exports.cacheFileName(exports.filenamifyUrl(zipUrl));
     if (!fs.existsSync(cachedName)) {
         request({ url: zipUrl, encoding: null, headers: headers }, function (err, res, body) {
@@ -290,17 +345,35 @@ function createProjectFromZipUrl(zipUrl, projectName) {
                 console.log("Writing zip file to: " + cachedName);
             exports.ensureCacheDir();
             fs.writeFile(cachedName, body, function (err) {
-                createProjectFromZip(cachedName, projectName);
+                createProjectFromZip(cachedName, projectName, done);
             });
         });
     }
     else {
-        createProjectFromZip(cachedName, projectName);
+        createProjectFromZip(cachedName, projectName, done);
     }
 }
 exports.createProjectFromZipUrl = createProjectFromZipUrl;
-function createProjectFromZip(zipFile, projectName) {
-    if (projectName === void 0) { projectName = null; }
+var execTimeoutMs = 10 * 1000;
+var retryAfterMs = 100;
+var sleep = function (ms) { return exec("\"" + process.argv[0] + "\" -e setTimeout(function(){}," + ms + ")"); };
+// Rename can fail on Windows when Windows Defender real-time AV is on: 
+// https://github.com/react-community/create-react-native-app/issues/191#issuecomment-304073970
+var managedExec = function (fn) {
+    var started = new Date().getTime();
+    do {
+        try {
+            fn();
+            return;
+        }
+        catch (e) {
+            if (DEBUG)
+                console.log((e.message || e) + ", retrying after " + retryAfterMs + "ms...");
+            sleep(retryAfterMs);
+        }
+    } while (new Date().getTime() - started < execTimeoutMs);
+};
+function createProjectFromZip(zipFile, projectName, done) {
     assertValidProjectName(projectName);
     if (!fs.existsSync(zipFile))
         throw new Error("File does not exist: " + zipFile);
@@ -319,27 +392,27 @@ function createProjectFromZip(zipFile, projectName) {
         if (DEBUG)
             console.log('Project extracted, rootDirs: ', rootDirs);
         if (rootDirs.length == 1) {
-            var rootDir = rootDirs[0];
-            if (fs.lstatSync(rootDir).isDirectory()) {
+            var rootDir_1 = rootDirs[0];
+            if (fs.lstatSync(rootDir_1).isDirectory()) {
                 if (DEBUG)
-                    console.log("Renaming single root dir '" + rootDir + "' to '" + projectName + "'");
-                fs.renameSync(rootDir, projectName);
-                renameTemplateFolder(path.join(process.cwd(), projectName), projectName);
+                    console.log("Renaming single root dir '" + rootDir_1 + "' to '" + projectName + "'");
+                managedExec(function () { return fs.renameSync(rootDir_1, projectName); });
+                renameTemplateFolder(path.join(process.cwd(), projectName), projectName, done);
             }
         }
         else {
             if (DEBUG)
                 console.log('No root folder found, renaming folders and files in: ' + process.cwd());
-            renameTemplateFolder(process.cwd(), projectName);
+            renameTemplateFolder(process.cwd(), projectName, done);
         }
     });
 }
 exports.createProjectFromZip = createProjectFromZip;
-// Rename can fail on Windows when Windows Defender real-time AV is on: https://github.com/react-community/create-react-native-app/issues/191#issuecomment-304073970
-function renameTemplateFolder(dir, projectName) {
+function renameTemplateFolder(dir, projectName, done) {
+    if (done === void 0) { done = null; }
     if (DEBUG)
         console.log('Renaming files and folders in: ', dir);
-    var replaceRegEx = /MyApp/g;
+    var projectNameKebab = camelToKebab(projectName);
     var fileNames = fs.readdirSync(dir);
     var _loop_1 = function (f) {
         var fileName = fileNames[f];
@@ -349,27 +422,37 @@ function renameTemplateFolder(dir, projectName) {
         var fstat = fs.statSync(oldPath);
         var newName = fileName.replace(replaceRegEx, projectName);
         var newPath = path.join(dir, newName);
-        fs.renameSync(oldPath, newPath);
+        managedExec(function () { return fs.renameSync(oldPath, newPath); });
         if (fstat.isFile()) {
             if (IGNORE_EXTENSIONS.indexOf(ext) == -1) {
-                fs.readFile(newPath, 'utf8', function (err, data) {
-                    if (err)
-                        return console.log("ERROR readFile '" + fileName + "': " + err);
-                    var result = data.replace(replaceRegEx, projectName);
-                    fs.writeFile(newPath, result, 'utf8', function (err) {
-                        if (err)
-                            return console.log("ERROR: " + err);
-                    });
-                });
+                try {
+                    data = fs.readFileSync(newPath, 'utf8');
+                    result = data.replace(replaceRegEx, projectName)
+                        .replace(replaceKebabRegEx, projectNameKebab);
+                    try {
+                        fs.writeFileSync(newPath, result, 'utf8');
+                    }
+                    catch (e) {
+                        console.log("ERROR: " + e);
+                    }
+                }
+                catch (err) {
+                    return { value: console.log("ERROR readFile '" + fileName + "': " + err) };
+                }
             }
         }
         else if (fstat.isDirectory()) {
-            renameTemplateFolder(newPath, projectName);
+            renameTemplateFolder(newPath, projectName, null);
         }
     };
+    var data, result;
     for (var f = 0; f < fileNames.length; f += 1) {
-        _loop_1(f);
+        var state_1 = _loop_1(f);
+        if (typeof state_1 === "object")
+            return state_1.value;
     }
+    if (done)
+        done();
 }
 exports.renameTemplateFolder = renameTemplateFolder;
 function assertValidProjectName(projectName) {
