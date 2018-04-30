@@ -120,14 +120,16 @@ export function updateReference(lang: string, cwd: string, target:string) {
     if (!fs.existsSync(existingRefPath))
         throw new Error(`File does not exist: ${existingRefPath.replace(/\\/g, '/')}`);
 
-    const existingRefSrc = fs.readFileSync(existingRefPath, 'utf8');
+    var existingRefSrc = fs.readFileSync(existingRefPath, 'utf8');
 
-    if (existingRefSrc.indexOf("Options:") === -1) 
-        throw new Error(`ERROR: ${target} is not an existing Swift ServiceStack Reference`);
+    var startPos = existingRefSrc.indexOf("Options:");
+    if (startPos === -1) 
+        throw new Error(`ERROR: ${target} is not an existing ServiceStack Reference`);
 
     var options = {};
     var baseUrl = "";
 
+    existingRefSrc = existingRefSrc.substring(startPos);
     var lines = existingRefSrc.split(/\r?\n/);
     for (var line of lines) {
         if (line.startsWith("*/"))
