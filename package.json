@@ -1,6 +1,6 @@
 {
   "name": "@servicestack/cli",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Simple CLI utils for ServiceStack projects",
   "main": "./src/index.js",
   "bin": {
