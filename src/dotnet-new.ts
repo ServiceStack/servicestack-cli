@@ -59,8 +59,7 @@ interface IRelease {
 
 const VALID_NAME_CHARS = /^[a-zA-Z_$][0-9a-zA-Z_$.]*$/;
 const ILLEGAL_NAMES = 'CON|AUX|PRN|COM1|LP2|.|..'.split('|');
-const IGNORE_EXTENSIONS = "jpg|jpeg|png|gif|ico|eot|otf|webp|svg|ttf|woff|woff2|mp4|webm|wav|mp3|m4a|aac|oga|ogg|dll|exe|pdb|so|zip"
-    + "|key|snk|p12|swf|xap|class|doc|xls|ppt|sqlite|db".split('|');
+const IGNORE_EXTENSIONS = "jpg|jpeg|png|gif|ico|eot|otf|webp|svg|ttf|woff|woff2|mp4|webm|wav|mp3|m4a|aac|oga|ogg|dll|exe|pdb|so|zip|key|snk|p12|swf|xap|class|doc|xls|ppt|sqlite|db".split('|');
 
 const camelToKebab = (str) => (str || '').replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase();
 const escapeRegEx = str => (str || '').replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&");
