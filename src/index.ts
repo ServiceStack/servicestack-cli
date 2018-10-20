@@ -185,10 +185,6 @@ export function saveReference(lang: string, typesUrl: string, cwd: string, fileN
 
             console.log(filePathExists ? `Updated: ${fileName}` : `Saved to: ${fileName}`);
 
-            if (lang == "swift") {
-                importSwiftClientSources(cwd);
-            }
-
             if (process.env.SERVICESTACK_TELEMETRY_OPTOUT != "1") {
                 var cmdType = filePathExists ? "updateref" : "addref";
                 const statsUrl = `https://servicestack.net/stats/${cmdType}/record?name=${lang}&source=cli&version=${packageConf.version}`;
@@ -246,31 +242,6 @@ This tool collects anonymous usage to determine the most used languages to impro
 To disable set SERVICESTACK_TELEMETRY_OPTOUT=1 environment variable to 1 using your favorite shell.`;
 
     console.log(USAGE);
-}
-
-export function importSwiftClientSources(cwd:string) {
-    const clientSrcPath = combinePaths(cwd, "JsonServiceClient.swift"); 
-
-    if (!fs.existsSync(clientSrcPath)) {
-        const clientSrcUrl = "https://servicestack.net/dist/swiftref/JsonServiceClient.swift";
-        request(clientSrcUrl, (err, res, clientSrc) => {
-
-            if (err)
-                handleError(err);
-
-            try {
-
-                if (clientSrc.indexOf("JsonServiceClient") === -1) 
-                    throw new Error(`ERROR: Invalid Response from ${clientSrcUrl}\n${clientSrc}`);
-
-                fs.writeFileSync(clientSrcPath, clientSrc, 'utf8');
-                console.log("Imported: JsonServiceClient.swift");
-
-            } catch (e) {
-                handleError(e, `ERROR: Could not import: JsonServiceClient.swift`);
-            }
-        });
-    }
 }
 
 export const normalizeSwitches = (cmd:string) => cmd.replace(/^-+/,'/');
