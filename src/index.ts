@@ -144,7 +144,7 @@ export function updateReference(lang: string, cwd: string, target:string) {
         if (line.startsWith("BaseUrl: ")) {
             baseUrl = line.substring("BaseUrl: ".length);
         } else if (baseUrl) {
-            if (line.indexOf("//") === -1 && line.indexOf("'") === -1) {
+            if (!line.startsWith("//") && !line.startsWith("'")) {
                 var parts = splitOnFirst(line, ":");
                 if (parts.length === 2) {
                     var key = parts[0].trim();
