@@ -1,4 +1,5 @@
 import * as fs from "fs";
+import * as path from "path";
 import * as url from 'url';
 import * as request from "request";
 
@@ -26,6 +27,8 @@ const REF_EXT = {
     "dart": "dtos.dart",
 };
 
+var VERBOSE = false;
+
 export function cli(args: string[]) {
     const nodeExe = args[0];
     const cliPath = args[1];
@@ -41,14 +44,21 @@ export function cli(args: string[]) {
     // console.log(packageConf.version);
     // process.exit(0);
 
+    let arg1 = cmdArgs.length > 0 ? normalizeSwitches(cmdArgs[0]) : null;
+
+    VERBOSE = ["/verbose"].indexOf(arg1) >= 0;
+    if (VERBOSE) {
+        cmdArgs.shift();
+        arg1 = cmdArgs[0] || "";
+        console.log(arg1, cmdArgs, ' VERBOSE: ', VERBOSE);
+    }
+
     const isDefault = cmdArgs.length == 0;
 
     if (isDefault) {
         execDefault(lang, cwd, dtosExt);
         return;
     }
-
-    const arg1 = normalizeSwitches(cmdArgs[0]);
 
     const isHelp = ["/h", "/?", "/help"].indexOf(arg1) >= 0;
     if (isHelp) {
@@ -70,25 +80,27 @@ export function cli(args: string[]) {
                     ? combinePaths(target, `/types/${lang}`)
                     : target;
 
-                var fileName = `Reference.${dtosExt}`;
+                var fileName = dtosExt;
 
                 if (cmdArgs.length >= 2 && cmdArgs[1]) {
                     fileName = cmdArgs[1];
-                } else {
+                } else if (!fs.existsSync(dtosExt)) {
+                    fileName = dtosExt;
+                } else {                    
                     const parts = url.parse(typesUrl).host.split('.');
                     fileName = parts.length >= 2
                         ? parts[parts.length - 2]
                         : parts[0];
                 }
 
-                if (!fileName.endsWith(`.${dtosExt}`)) {
+                if (!fileName.endsWith(dtosExt)) {
                     fileName = fileName + `.${dtosExt}`;
                 }
 
-                saveReference(lang, typesUrl, cwd, fileName);
+                saveReference(lang, typesUrl, fileName);
 
             } else {
-                updateReference(lang, cwd, target);
+                updateReference(lang, target);
             }
 
         } catch (e) {
@@ -110,13 +122,15 @@ function handleError(e, msg:string=null) {
     process.exit(-1);
 }
 
-export function updateReference(lang: string, cwd: string, target:string) {
+export function updateReference(lang: string, target:string) {
+    if (VERBOSE) console.log('updateReference', lang, target);
+
     const targetExt = splitOnLast(target, '.')[1];
     const langExt = splitOnLast(REF_EXT[lang], '.')[1];
     if (targetExt != langExt) 
         throw new Error(`Invalid file type: '${target}', expected '.${langExt}' source file`);
 
-    const existingRefPath = combinePaths(cwd, target);
+    const existingRefPath = path.resolve(target);
     if (!fs.existsSync(existingRefPath))
         throw new Error(`File does not exist: ${existingRefPath.replace(/\\/g, '/')}`);
 
@@ -165,11 +179,13 @@ export function updateReference(lang: string, cwd: string, target:string) {
     }
 
     const typesUrl = combinePaths(baseUrl, `/types/${lang}`) + qs;
-    saveReference(lang, typesUrl, cwd, target);
+    saveReference(lang, typesUrl, target);
 }
 
-export function saveReference(lang: string, typesUrl: string, cwd: string, fileName: string) {
-    const filePath = combinePaths(cwd, fileName);
+export function saveReference(lang: string, typesUrl: string, fileName: string) {
+    if (VERBOSE) console.log('saveReference', lang, typesUrl, fileName);
+
+    const filePath = path.resolve(fileName);
 
     request(typesUrl, (err, res, dtos) => {
         if (err)
@@ -200,7 +216,7 @@ export function saveReference(lang: string, typesUrl: string, cwd: string, fileN
 
 export function execDefault(lang: string, cwd: string, dtosExt:string) {
     var matchingFiles = [];
-    fs.readdirSync(cwd).forEach(entry => {
+    walk(cwd).forEach(entry => {
         if (entry.endsWith(dtosExt)) {
             matchingFiles.push(entry);
         }
@@ -212,12 +228,29 @@ export function execDefault(lang: string, cwd: string, dtosExt:string) {
     } else {
         matchingFiles.forEach(target => {
             try {
-                updateReference(lang, cwd, target);
+                updateReference(lang, target);
             } catch(e) {
                 console.error(e.message || e);
             }
         });
     }
+}
+
+function walk(dir:string) {
+    var results = [];
+    var list = fs.readdirSync(dir);
+    list.forEach(file => {
+        file = path.join(dir,file);
+        var stat = fs.statSync(file);
+        if (stat && stat.isDirectory()) { 
+            /* Recurse into a subdirectory */
+            results = results.concat(walk(file));
+        } else { 
+            /* Is a file */
+            results.push(file);
+        }
+    });
+    return results;
 }
 
 export function execHelp(lang: string, scriptName: string, dtosExt: string) {
