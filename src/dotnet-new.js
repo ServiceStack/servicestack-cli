@@ -33,6 +33,19 @@ var camelToKebab = function (str) { return (str || '').replace(/([a-z])([A-Z])/g
 var escapeRegEx = function (str) { return (str || '').replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&"); };
 var replaceRegEx = /MyApp/g;
 var replaceKebabRegEx = /my-app/g;
+var replaceSplitCaseRegEx = /My App/g;
+var removeWindowsCR = /\r/g;
+var splitCase = function (t) { return typeof t != 'string' ? t : t.replace(/([A-Z]|[0-9]+)/g, ' $1').replace(/_/g, ' ').trim(); };
+var replaceMyApp = function (s, projectName) {
+    if (!s)
+        return "";
+    var ret = s.replace(replaceRegEx, projectName)
+        .replace(replaceKebabRegEx, camelToKebab(projectName))
+        .replace(replaceSplitCaseRegEx, splitCase(projectName));
+    if (process.platform != 'win32')
+        return ret.replace(removeWindowsCR, "");
+    return ret;
+};
 var exec = require('child_process').execSync;
 function runScript(script) {
     process.env.FORCE_COLOR = "1";
@@ -90,7 +103,6 @@ function cli(args) {
         return;
     }
     var projectName = cmdArgs.length > 1 ? cmdArgs[1] : null;
-    var projectNameKebab = camelToKebab(projectName);
     var isGitHubProject = template.indexOf('://') == -1 && template.split('/').length == 2;
     if (isGitHubProject)
         template = "https://github.com/" + template;
@@ -104,13 +116,11 @@ function cli(args) {
             if (fs.existsSync(projectName)) {
                 process.chdir(projectName);
                 (config.postinstall || []).forEach(function (rule) {
-                    var path = rule.test.replace(replaceRegEx, projectName)
-                        .replace(replaceKebabRegEx, projectNameKebab);
+                    var path = replaceMyApp(rule.test, projectName);
                     if (fs.existsSync(path)) {
                         if (!rule.exec)
                             return;
-                        var exec = rule.exec.replace(replaceRegEx, projectName)
-                            .replace(replaceKebabRegEx, projectNameKebab);
+                        var exec = replaceMyApp(rule.exec, projectName);
                         if (DEBUG)
                             console.log("Matched: '" + rule.test + "', executing '" + exec + "'...");
                         try {
@@ -411,7 +421,6 @@ function renameTemplateFolder(dir, projectName, done) {
     if (done === void 0) { done = null; }
     if (DEBUG)
         console.log('Renaming files and folders in: ', dir);
-    var projectNameKebab = camelToKebab(projectName);
     var fileNames = fs.readdirSync(dir);
     var _loop_1 = function (f) {
         var fileName = fileNames[f];
@@ -419,15 +428,14 @@ function renameTemplateFolder(dir, projectName, done) {
         var ext = parts.length == 2 ? parts[1] : null;
         var oldPath = path.join(dir, fileName);
         var fstat = fs.statSync(oldPath);
-        var newName = fileName.replace(replaceRegEx, projectName);
+        var newName = replaceMyApp(fileName, projectName);
         var newPath = path.join(dir, newName);
         managedExec(function () { return fs.renameSync(oldPath, newPath); });
         if (fstat.isFile()) {
             if (IGNORE_EXTENSIONS.indexOf(ext) == -1) {
                 try {
                     data = fs.readFileSync(newPath, 'utf8');
-                    result = data.replace(replaceRegEx, projectName)
-                        .replace(replaceKebabRegEx, projectNameKebab);
+                    result = replaceMyApp(data, projectName);
                     try {
                         fs.writeFileSync(newPath, result, 'utf8');
                     }

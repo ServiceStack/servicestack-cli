@@ -65,6 +65,25 @@ const camelToKebab = (str) => (str || '').replace(/([a-z])([A-Z])/g, '$1-$2').to
 const escapeRegEx = str => (str || '').replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&");
 const replaceRegEx = /MyApp/g;
 const replaceKebabRegEx = /my-app/g;
+const replaceSplitCaseRegEx = /My App/g;
+const removeWindowsCR = /\r/g;
+
+const splitCase = (t: string) => typeof t != 'string' ? t : t.replace(/([A-Z]|[0-9]+)/g, ' $1').replace(/_/g, ' ').trim();
+const replaceMyApp = (s:string, projectName:string) =>
+{
+    if (!s)
+        return "";
+
+    let ret = s.replace(replaceRegEx, projectName)
+               .replace(replaceKebabRegEx, camelToKebab(projectName))
+               .replace(replaceSplitCaseRegEx, splitCase(projectName));
+
+    if (process.platform != 'win32')
+        return ret.replace(removeWindowsCR, "");
+    
+    return ret;
+}
+
 const exec = require('child_process').execSync;
 
 function runScript(script) {
@@ -133,8 +152,8 @@ export function cli(args: string[]) {
         return;
     }
 
+
     const projectName = cmdArgs.length > 1 ? cmdArgs[1] : null;
-    const projectNameKebab = camelToKebab(projectName);
 
     const isGitHubProject = template.indexOf('://') == -1 && template.split('/').length == 2;
     if (isGitHubProject) 
@@ -151,12 +170,10 @@ export function cli(args: string[]) {
                 process.chdir(projectName);
 
                 (config.postinstall || []).forEach(rule => {
-                    var path = rule.test.replace(replaceRegEx, projectName)
-                                        .replace(replaceKebabRegEx, projectNameKebab);
+                    var path = replaceMyApp(rule.test, projectName);
                     if (fs.existsSync(path)) {
                         if (!rule.exec) return;
-                        var exec = rule.exec.replace(replaceRegEx, projectName)
-                                            .replace(replaceKebabRegEx, projectNameKebab);
+                        var exec = replaceMyApp(rule.exec, projectName);
                         if (DEBUG) console.log(`Matched: '${rule.test}', executing '${exec}'...`);
                         try {
                             runScript(exec);
@@ -468,8 +485,6 @@ export function createProjectFromZip(zipFile: string, projectName: string, done:
 export function renameTemplateFolder(dir: string, projectName: string, done:Function=null) {
     if (DEBUG) console.log('Renaming files and folders in: ', dir);
 
-    const projectNameKebab = camelToKebab(projectName);
-
     const fileNames = fs.readdirSync(dir);
     for (let f = 0; f < fileNames.length; f += 1) {
         const fileName = fileNames[f];
@@ -477,7 +492,7 @@ export function renameTemplateFolder(dir: string, projectName: string, done:Func
         const ext = parts.length == 2 ? parts[1] : null;
         const oldPath = path.join(dir, fileName);
         const fstat = fs.statSync(oldPath);
-        const newName = fileName.replace(replaceRegEx, projectName);
+        const newName = replaceMyApp(fileName, projectName);
         const newPath = path.join(dir, newName);
         managedExec(() => fs.renameSync(oldPath, newPath));
 
@@ -485,9 +500,7 @@ export function renameTemplateFolder(dir: string, projectName: string, done:Func
             if (IGNORE_EXTENSIONS.indexOf(ext) == -1) {
                 try {
                     var data = fs.readFileSync(newPath, 'utf8');
-
-                    var result = data.replace(replaceRegEx, projectName)
-                                     .replace(replaceKebabRegEx, projectNameKebab);
+                    var result = replaceMyApp(data, projectName);
 
                     try {
                         fs.writeFileSync(newPath, result, 'utf8');
