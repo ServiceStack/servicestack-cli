@@ -503,7 +503,7 @@ exports.rmdir = function (path) {
             if (fs.lstatSync(curPath).isDirectory()) {
                 exports.rmdir(curPath);
             }
-            else { // delete file
+            else {
                 fs.unlinkSync(curPath);
             }
         });

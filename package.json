@@ -22,7 +22,7 @@
     "dart-ref": "bin/dart-ref.js"
   },
   "scripts": {
-    "test": "jest",
+    "test": "tsc && jest",
     "test-watch": "jest --watch",
     "test-coverage": "jest --coverage"
   },
