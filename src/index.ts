@@ -182,12 +182,19 @@ export function updateReference(lang: string, target:string) {
     saveReference(lang, typesUrl, target);
 }
 
+function allowLocalSelfSignedCerts(url) {
+    if (url.startsWith("https://localhost") || url.startsWith("https://127.0.0.1")) {
+        process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = "0"; // ignore self-signed SSL errors for localhost
+    }
+    return url;
+}
+
 export function saveReference(lang: string, typesUrl: string, fileName: string) {
     if (VERBOSE) console.log('saveReference', lang, typesUrl, fileName);
 
     const filePath = path.resolve(fileName);
 
-    request(typesUrl, (err, res, dtos) => {
+    request(allowLocalSelfSignedCerts(typesUrl), (err, res, dtos) => {
         if (err)
             handleError(err);
 
